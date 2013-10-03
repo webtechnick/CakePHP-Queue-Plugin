@@ -1,6 +1,6 @@
 <?php
 App::uses('QueueAppModel', 'Queue.Model');
-class Queue extends QueueAppModel {
+class QueueTask extends QueueAppModel {
 
 	/**
 	 * Display field
@@ -46,7 +46,7 @@ class Queue extends QueueAppModel {
 	 * @var array
 	 */
 	public $searchFields = array(
-		'Queue.command','Queue.id','Queue.status','Queue.type'
+		'QueueTask.command','QueueTask.id','QueueTask.status','QueueTask.type'
 	);
 
 	/**
@@ -128,6 +128,39 @@ class Queue extends QueueAppModel {
 	}
 
 	/**
+	* Convience function utilized by Queue::add() library
+	* @param string command
+	* @param mixed type (string or int)
+	* @param array of options
+	*  - start = strtotime parsable string of when the task should be executed. (default null).
+	*            if left null, as soon as possible will be assumed.
+	*  - priority = the priority of the task, a way to Cut in line. (default 100)
+	* @return boolean success
+	*/
+	public function add($command, $type, $options = array()) {
+		$options = array_merge(array(
+			'start' => null,
+			'priority' => 100
+		), (array) $options);
+
+		if (!$this->isDigit($type)) {
+			$type = $this->__findType($type);
+		}
+
+		$execute = $options['start'];
+		if ($options['start'] !== null) {
+			$execute = $this->str2datetime(($options['start']));
+		}
+
+		$data = array(
+			'priority' => $options['priority'],
+			'command' => $command,
+			'type' => $type,
+			'execute' => $execute
+		);
+		return $this->save($data);
+	}
+	/**
 	* afterFind will add status_human and type_human to the result
 	* human readable and understandable type and status.
 	* @param array of results
@@ -201,7 +234,7 @@ class Queue extends QueueAppModel {
 			$this->id = $id;
 		}
 		if (!$this->exists()) {
-			return $this->__errorAndExit("Queue {$this->id} not found.");
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
 		$this->__setInProgress($this->id);
 		$data = $this->read();
@@ -247,6 +280,27 @@ class Queue extends QueueAppModel {
 		return $retval;
 	}
 
+	/**
+	* Archive this current QueueTask into QueueTaskArchive table
+	* @param string uuid id
+	* @return boolean success
+	*/
+	public function archive($id = null) {
+		if ($id) {
+			$this->id = $id;
+		}
+		if (!$this->exists()) {
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
+		}
+		$data = $this->read();
+		if ($data[$this->alias]['status'] != 3) { //Finished
+			return false;
+		}
+		if (!ClassRegistry::init('Queue.QueueTaskArchive')->save($data)){
+			return false;
+		}
+		return $this->delete($this->id);
+	}
 	/**
 	* Generate filter conditions for filter search
 	* @param string filter
@@ -421,7 +475,7 @@ class Queue extends QueueAppModel {
 			$this->id = $id;
 		}
 		if (!$this->exists()) {
-			return $this->__errorAndExit("Queue {$this->id} not found.");
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
 		return $this->saveField('status', 2);
 	}
@@ -436,13 +490,14 @@ class Queue extends QueueAppModel {
 			$this->id = $id;
 		}
 		if (!$this->exists()) {
-			return $this->__errorAndExit("Queue {$this->id} not found.");
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
 		return $this->saveField('status', 4);
 	}
 
 	/**
 	* Set the current queue to finished
+	* Will archive the task after execution
 	* @param string id (optional)
 	* @param mixed result to save back
 	* @return boolean success
@@ -452,11 +507,42 @@ class Queue extends QueueAppModel {
 			$this->id = $id;
 		}
 		if (!$this->exists()) {
-			return $this->__errorAndExit("Queue {$this->id} not found.");
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
 		$this->saveField('status', 3);
 		$this->saveField('result', json_encode($result));
 		$this->saveField('executed',$this->str2datetime());
+		if (QueueUtil::getConfig('archiveAfterExecute')) {
+			$this->archive($this->id);
+		}
 		return true;
+	}
+
+	/**
+	* Find the type int by a string
+	* @param string type (model, shell, php_cmd, etc...)
+	* @return mixed int of correct type or false if invalid.
+	*/
+	private function __findType($stringType) {
+		$stringType = strtolower($stringType);
+		$type = array_search($stringType, $this->_types);
+		if ($type !== false) {
+			return $type;
+		}
+		return false;
+	}
+
+	/**
+	* Find the status int by a string
+	* @param string status (queued, in_progress, etc..)
+	* @return mixed int of correct status or false if invalid.
+	*/
+	private function __findStatus($stringStatus) {
+		$stringStatus = strtolower($stringStatus);
+		$status = array_search($stringStatus, $this->_statuses);
+		if ($status !== false) {
+			return $status;
+		}
+		return false;
 	}
 }

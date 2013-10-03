@@ -1,9 +1,9 @@
 <?php
 /**
- * QueueFixture
+ * QueueTaskFixture
  *
  */
-class QueueFixture extends CakeTestFixture {
+class QueueTaskFixture extends CakeTestFixture {
 
 /**
  * Fields

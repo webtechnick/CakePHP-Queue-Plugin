@@ -14,6 +14,7 @@ $config = array(
 			3, //url
 			//4, //php_cmd
 			//5, //shell_cmd
-		)
+		),
+		'archiveAfterExecute' => true, //will archive the task once finished executing for quicker queues, if false you'll run manually using `cake Queue.Queue archive`
 	)
 );

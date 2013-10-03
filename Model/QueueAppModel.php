@@ -40,7 +40,7 @@ class QueueAppModel extends AppModel {
 	/**
   * This is what I want create to do, but without setting defaults.
   */
-  public function clear(){
+  public function clear() {
   	$this->id = false;
 		$this->data = array();
 		$this->validationErrors = array();
@@ -51,10 +51,19 @@ class QueueAppModel extends AppModel {
   * @param string that is parsable by str2time
   * @return date time string for MYSQL
   */
-  function str2datetime($str = 'now'){
+  function str2datetime($str = 'now') {
   	if (is_array($str) && isset($str['month']) && isset($str['day']) && isset($str['year'])) {
   		$str = "{$str['month']}/{$str['day']}/{$str['year']}";
   	}
   	return date("Y-m-d H:i:s", strtotime($str));
+  }
+ 
+  /**
+  * Returns if the variable is an int or string that matches an int
+  * @param mixed var
+  * @return boolean if is digit.
+  */
+  public function isDigit($var = null) {
+  	return (is_int($var) || (is_string($var) && preg_match('/\d+$/', $var)));
   }
 }

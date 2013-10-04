@@ -70,7 +70,7 @@ class QueueTask extends QueueAppModel {
 		2 => 'shell',
 		3 => 'url',
 		4 => 'php_cmd',
-		5 => 'shell_cmd'
+		5 => 'shell_cmd',
 	);
 	
 	/**
@@ -102,7 +102,49 @@ class QueueTask extends QueueAppModel {
 	* @return boolean if valid
 	*/
 	public function validCommand($field) {
-		return true; //TODO
+		if (!isset($this->data[$this->alias]['type'])) {
+			$this->invalidate('type', 'type must be present to validate command');
+			return false;
+		}
+		switch ($this->data[$this->alias]['type']) {
+			case 1: //Model must have :: and ) as last character.
+				if (strpos($field['command'], '::') === false || substr($field['command'], -1) != ')') {
+					$this->invalidate('command', 'Please use Model Syntax:  \'SomeModel::action()\'  \'Plugin.SomeModel::action("param","param")\'');
+					return false;
+				}
+				break;
+			case 2: //Shell must not have whole word 'cake' in front.
+				$nostrings = array('cake','./cake','Console/cake');
+				foreach ($nostrings as $string) {
+					if (strpos($field['command'], $string) === 0) {
+						$this->invalidate('command', 'Specify shell commands as though using dispatchShell string:  \'Plugin.SomeShell command param1 param2\'');
+						return false;
+					}
+				}
+				break;
+			case 3: //url must have a / in it
+				if (strpos($field['command'], '/') === false) {
+					$this->invalidate('command', 'Url must contain a /:  \'/path/to/action\' \'http://example.com/path/to/action\'');
+					return false;
+				}
+				break;
+			case 4: //php_command basically can't be empty.
+				if (empty($field['command'])) {
+					$this->invalidate('command', 'PhpCmd must not be empty:  \'5 + 7\'');
+					return false;
+				}
+				break;
+			case 5: //shell command basically can't be empty.
+				if (empty($field['command'])) {
+					$this->invalidate('command', 'ShellCmd must not be empty:  \'echo "hello" && echo "world"\'');
+					return false;
+				}
+				break;
+			default: //we shouldn't get here, something went really wrong if we did but definately don't want to return true if we do.
+				$this->invalidate('command', 'Unknown Type, cannot validate command');
+				return false;
+		}
+		return true;
 	}
 
 	/**
@@ -110,7 +152,7 @@ class QueueTask extends QueueAppModel {
 	* @param array field
 	* @return boolean if valid
 	*/
-	public function allowedType() {
+	public function allowedType($field) {
 		$allowedTypes = QueueUtil::getConfig('allowedTypes');
 		return isset($allowedTypes[$field['type']]);
 	}
@@ -281,7 +323,7 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
-	* Archive this current QueueTask into QueueTaskArchive table
+	* Archive this current QueueTask into QueueTaskLogs table
 	* @param string uuid id
 	* @return boolean success
 	*/
@@ -296,7 +338,7 @@ class QueueTask extends QueueAppModel {
 		if ($data[$this->alias]['status'] != 3) { //Finished
 			return false;
 		}
-		if (!ClassRegistry::init('Queue.QueueTaskArchive')->save($data)){
+		if (!ClassRegistry::init('Queue.QueueTaskLog')->save($data)){
 			return false;
 		}
 		return $this->delete($this->id);
@@ -358,7 +400,7 @@ class QueueTask extends QueueAppModel {
 	* @return array of result and success
 	* @access private
 	*/
-	private function __runModelQueue($data){
+	private function __runModelQueue($data) {
 		$retval = array(
 			'success' => false,
 			'result' => null
@@ -387,7 +429,7 @@ class QueueTask extends QueueAppModel {
 	* @return array of result and success
 	* @access private
 	*/
-	private function __runShellQueue($data){
+	private function __runShellQueue($data) {
 		$retval = array(
 			'success' => false,
 			'result' => null
@@ -411,7 +453,7 @@ class QueueTask extends QueueAppModel {
 	* @return array of result and success
 	* @access private
 	*/
-	private function __runUrlQueue($data){
+	private function __runUrlQueue($data) {
 		$retval = array(
 			'success' => false,
 			'result' => null
@@ -430,7 +472,7 @@ class QueueTask extends QueueAppModel {
 	* @return array of result and success
 	* @access private
 	*/
-	private function __runPhpCmdQueue($data){
+	private function __runPhpCmdQueue($data) {
 		$retval = array(
 			'success' => false,
 			'result' => null
@@ -451,7 +493,7 @@ class QueueTask extends QueueAppModel {
 	* @return array of result and success
 	* @access private
 	*/
-	private function __runShellCmdQueue($data){
+	private function __runShellCmdQueue($data) {
 		$retval = array(
 			'success' => false,
 			'result' => null

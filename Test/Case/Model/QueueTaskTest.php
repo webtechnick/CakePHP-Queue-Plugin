@@ -3,6 +3,7 @@ App::uses('QueueAppModel','Queue.Model');
 App::uses('QueueTask', 'Queue.Model');
 App::uses('CakeTestCase','TestSuite');
 App::uses('Shell','Console');
+App::uses('QueueUtil','Queue.Lib');
 /**
 * SomeModel Class
 */
@@ -33,6 +34,7 @@ class QueueTaskTest extends CakeTestCase {
 		parent::setUp();
 		$this->QueueTask = $this->getMockForModel('Queue.QueueTask', array('requestAction', 'getCurrentUser'));
 		$this->QueueTask->Shell = $this->getMock('Shell');
+		Configure::write('Queue.allowedTypes', array(1,2,3,4,5));
 	}
 
 /**
@@ -44,6 +46,223 @@ class QueueTaskTest extends CakeTestCase {
 		unset($this->QueueTask);
 
 		parent::tearDown();
+	}
+	
+	public function test_validCommandShellCmd() {
+		//Validate phpShell
+		$data = array(
+			'QueueTask' => array(
+				'type' => 5,
+				'command' => '', //emtpy
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['command']));
+	}
+	
+	public function test_validCommandPhpShell() {
+		//Validate phpShell
+		$data = array(
+			'QueueTask' => array(
+				'type' => 4,
+				'command' => '', //emtpy
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['command']));
+		
+		//Validate works.
+		QueueUtil::getConfig('allowedTypes');
+		QueueUtil::$configs['allowedTypes'] = array(1,2,3,4,5);
+		$data = array(
+			'QueueTask' => array(
+				'type' => 4, //php cmd
+				'command' => '5 + 7'
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue(empty($this->QueueTask->validationErrors['command']));
+	}
+	
+	public function test_validCommandShell() {
+		$validationErrorCommands = array(
+			'cake Shell command',
+			'Console/cake Shell command',
+			'./cake Shell command'
+		);
+		foreach ($validationErrorCommands as $command) {
+			//Validate SHell
+			$data = array(
+				'QueueTask' => array(
+					'type' => 2, //shell
+					'command' => $command
+				)
+			);
+			$count = $this->QueueTask->find('count');
+			$result = $this->QueueTask->save($data);
+			$this->assertFalse($result);
+			$this->assertEqual($this->QueueTask->find('count'), $count);
+			$this->assertTrue(!empty($this->QueueTask->validationErrors['command']));
+		}
+		
+		//Validate works.
+		$data = array(
+			'QueueTask' => array(
+				'type' => 2, //shell
+				'command' => 'Plugin.Queue command param1 param2'
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue(empty($this->QueueTask->validationErrors['command']));
+	}
+	
+	public function test_validUrlShell() {
+		$validationErrorCommands = array(
+			'someurl',
+		);
+		foreach ($validationErrorCommands as $command) {
+			//Validate url
+			$data = array(
+				'QueueTask' => array(
+					'type' => 3, //url
+					'command' => $command
+				)
+			);
+			$count = $this->QueueTask->find('count');
+			$result = $this->QueueTask->save($data);
+			$this->assertFalse($result);
+			$this->assertEqual($this->QueueTask->find('count'), $count);
+			$this->assertTrue(!empty($this->QueueTask->validationErrors['command']));
+		}
+		
+		//Validate works.
+		$data = array(
+			'QueueTask' => array(
+				'type' => 3, //shell
+				'command' => '/some/url'
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue(empty($this->QueueTask->validationErrors['command']));
+	}
+	
+	public function test_validCommandModel() {
+		$data = array(
+			'QueueTask' => array(
+				//'type' => 1, //no type, validation error
+				'command' => 'Model::action()',
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['type']));
+		
+		//Validate Model
+		$validationErrorCommands = array(
+			'Model:action()',
+			'Model::action(',
+		);
+		foreach ($validationErrorCommands as $command) {
+			//Validate model
+			$data = array(
+				'QueueTask' => array(
+					'type' => 1, //model
+					'command' => $command
+				)
+			);
+			$count = $this->QueueTask->find('count');
+			$result = $this->QueueTask->save($data);
+			$this->assertFalse($result);
+			$this->assertEqual($this->QueueTask->find('count'), $count);
+			$this->assertTrue(!empty($this->QueueTask->validationErrors['command']));
+		}
+		
+		//Validate works.
+		$data = array(
+			'QueueTask' => array(
+				'type' => 1, //model
+				'command' => 'Model::action("param2")'
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue(empty($this->QueueTask->validationErrors['command']));
+	}
+	
+	public function test_typeValidate(){
+		$data = array(
+			'QueueTask' => array(
+				'type' => 99, //no exist
+				'command' => 'Model::action()',
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['type']));
+	}
+	
+	public function test_typeStatus(){
+		$data = array(
+			'QueueTask' => array(
+				'type' => 1, //model
+				'command' => 'Model::action()',
+				'status' => 99, //no exist
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['status']));
+	}
+	
+	public function test_typeValidateAllowed(){
+		QueueUtil::getConfig('allowedTypes');
+		QueueUtil::$configs['allowedTypes'] = array(1,2);
+		$data = array(
+			'QueueTask' => array(
+				'type' => 3, //valid type but not allowed
+				'command' => '/url/to/queue',
+			)
+		);
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->save($data);
+		$this->assertFalse($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count);
+		$this->assertTrue(!empty($this->QueueTask->validationErrors['type']));
+		
+		//But a valid type works
+		$data = array(
+			'QueueTask' => array(
+				'type' => 1, //valid
+				'command' => 'Model::action()',
+			)
+		);
+		$result = $this->QueueTask->save($data);
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue(empty($this->QueueTask->validationErrors['type']));
 	}
 	
 	public function test_saveUser(){

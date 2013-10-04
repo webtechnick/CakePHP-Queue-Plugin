@@ -6,7 +6,7 @@
 *   cake Queue.Queue archive
 */
 App::uses('QueueAppModel', 'Queue.Model');
-class QueueTaskArchive extends QueueAppModel {
+class QueueTaskLog extends QueueAppModel {
 	/**
 	 * Display field
 	 * @var string

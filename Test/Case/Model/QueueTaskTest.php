@@ -17,12 +17,13 @@ class SomeModel extends QueueAppModel {
 class QueueTaskTest extends CakeTestCase {
 
 /**
- * Additional Fixtures
+ * Fixture
  *
  * @var array
  */
 	public $fixtures = array(
 		'plugin.queue.queue_task',
+		'plugin.queue.queue_task_log',
 	);
 
 /**
@@ -46,6 +47,19 @@ class QueueTaskTest extends CakeTestCase {
 		unset($this->QueueTask);
 
 		parent::tearDown();
+	}
+	
+	public function test_archive() {
+		QueueUtil::$configs['archiveAfterExecute'] = false;
+		$this->QueueTask->id = '524b0c44-a3a0-4956-8428-dc3ee017215a';
+		$result = $this->QueueTask->run();
+		$this->assertTrue($result);
+		
+		$QueueTaskLog = ClassRegistry::init('Queue.QueueTaskLog');
+		$count = $QueueTaskLog->find('count');
+		$result = $this->QueueTask->archive();
+		$this->assertFalse($this->QueueTask->exists()); //deleted
+		$this->assertEqual($QueueTaskLog->find('count'), $count + 1);
 	}
 	
 	public function test_validCommandShellCmd() {

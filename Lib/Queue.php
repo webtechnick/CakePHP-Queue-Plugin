@@ -36,7 +36,9 @@ class Queue extends Object {
 	*/
 	public static function delete($id = null) {
 		self::loadQueuetask();
-		return self::$QueueTask->delete($id);
+		$retval = self::$QueueTask->delete($id);
+		QueueUtil::clearCache();
+		return $retval;
 	}
 	
 	/**

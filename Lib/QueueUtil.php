@@ -104,10 +104,14 @@ class QueueUtil extends Object {
 	}
 	
 	/**
-	* Clears all cache.
+	* Clears all queue cache.
+	* @return boolean success
 	*/
 	public static function clearCache() {
-		return Cache::clear(false, 'queue');
+		if (self::getConfig('cache')) {
+			return Cache::clear(false, 'queue');
+		}
+		return true;
 	}
 	
 	/**

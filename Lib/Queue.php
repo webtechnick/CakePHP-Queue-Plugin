@@ -60,6 +60,22 @@ class Queue extends Object {
 	}
 
 	/**
+	* Return the queue from QueueTask or QueueTaskLog as an associative array
+	* @param string uuid
+	* @return mixed array of queue or false if not found.
+	*/
+	public static function findById($id = null) {
+		self::loadQueueTask();
+		if (self::$QueueTask->hasAny(array('QueueTask.id' => $id))) {
+			return self::$QueueTask->findById($id);
+		}
+		self::loadQueueTaskLog();
+		if (self::$QueueTaskLog->hasAny(array('QueueTaskLog.id' => $id))) {
+			return self::$QueueTaskLog->findById($id);
+		}
+		return false;
+	}
+	/**
 	* View the task as a string representation looks in QueueTask and QueueTaskLog
 	* @param string uuid
 	* @return string representation of task.

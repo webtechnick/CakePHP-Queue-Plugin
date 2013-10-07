@@ -107,6 +107,22 @@ class QueueAppModel extends AppModel {
   public function isDigit($var = null) {
   	return (is_int($var) || (is_string($var) && preg_match('/\d+$/', $var)));
   }
+
+  /**
+  * Get the current record, for QueueTask or QueueTaskLog
+  * @param string uuid
+  * @return mixed associative array of queue or false on failure
+  */
+  public function findById($id = null) {
+  	if ($id) {
+			$this->id = $id;
+		}
+		if (!$this->exists()) {
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
+		}
+		$retval = $this->read();
+		return $retval[$this->alias];
+  }
   /**
 	* String representation of task
 	* @param uuid string

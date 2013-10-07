@@ -49,6 +49,87 @@ class QueueTaskTest extends CakeTestCase {
 		parent::tearDown();
 	}
 	
+	public function test_process() {
+		QueueUtil::$configs['limit'] = 3;
+		QueueUtil::$configs['archiveAfterExecute'] = true;
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->process();
+		$this->assertTrue($result);
+		$this->assertEqual($this->QueueTask->find('count'), $count - 3);
+		$QueueLog = ClassRegistry::init('Queue.QueueTaskLog');
+		$logs = $QueueLog->find('all');
+		$this->assertEqual(count($logs), 3);
+		foreach ($logs as $log) {
+			$this->assertEqual($log['QueueTaskLog']['status'], 3); //finixhed
+			$this->assertTrue(!empty($log['QueueTaskLog']['executed']));
+			$this->assertTrue(!empty($log['QueueTaskLog']['start_time']));
+			$this->assertTrue(!empty($log['QueueTaskLog']['end_time']));
+		}
+	}
+	
+	public function test_removeNotInProgress() {
+		$this->QueueTask->id = '524b0c44-a3a0-4956-8428-dc3ee017215a';
+		$result = $this->QueueTask->remove(); //forcing delete
+		$this->assertTrue($result);
+		$this->assertFalse($this->QueueTask->exists());
+	}
+	
+	public function test_removeNoRemoveInProgress() {
+		$this->QueueTask->id = '524b0c44-a3a0-4956-8428-dc3ee017215a';
+		$this->QueueTask->saveField('status', 2); //setting to in progress.
+		$result = $this->QueueTask->remove();
+		$this->assertFalse($result);
+		$this->assertTrue($this->QueueTask->exists());
+	}
+	
+	public function test_removeRemoveInProgressForce() {
+		$this->QueueTask->id = '524b0c44-a3a0-4956-8428-dc3ee017215a';
+		$this->QueueTask->saveField('status', 2); //setting to in progress.
+		$result = $this->QueueTask->remove(null, true); //forcing delete
+		$this->assertTrue($result);
+		$this->assertFalse($this->QueueTask->exists());
+	}
+	
+	public function test_addRestricted() {
+		//Validation rules are tested, test restricted
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->add("Model::action()", 'model', array('hour' => '11 pm', 'day' => 'Monday', 'cpu_limit' => 95));
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertTrue($this->QueueTask->field('is_restricted'));
+		$this->assertEqual($this->QueueTask->field('hour'), 23);
+		$this->assertEqual($this->QueueTask->field('day'), 1);
+		$this->assertEqual($this->QueueTask->field('cpu_limit'), 95);
+		$this->assertEqual($this->QueueTask->field('type'), 1);
+		$this->assertEqual($this->QueueTask->field('priority'), 100);
+	}
+	
+	public function test_addNormal_minimal() {
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->add("Model::action()", 'model');
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertFalse($this->QueueTask->field('is_restricted'));
+		$this->assertEqual($this->QueueTask->field('hour'), null);
+		$this->assertEqual($this->QueueTask->field('day'), null);
+		$this->assertEqual($this->QueueTask->field('cpu_limit'), null);
+		$this->assertEqual($this->QueueTask->field('type'), 1);
+		$this->assertEqual($this->QueueTask->field('priority'), 100);
+	}
+	
+	public function test_addNormal_extra() {
+		$count = $this->QueueTask->find('count');
+		$result = $this->QueueTask->add("Model::action()", 1, array('priority' => 50));
+		$this->assertTrue(!empty($result));
+		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
+		$this->assertFalse($this->QueueTask->field('is_restricted'));
+		$this->assertEqual($this->QueueTask->field('hour'), null);
+		$this->assertEqual($this->QueueTask->field('day'), null);
+		$this->assertEqual($this->QueueTask->field('cpu_limit'), null);
+		$this->assertEqual($this->QueueTask->field('type'), 1);
+		$this->assertEqual($this->QueueTask->field('priority'), 50);
+	}
+	
 	public function test_next() {
 		$result = $this->QueueTask->next(2, true, false);
 		$this->assertEqual(count($result), 2);
@@ -307,6 +388,7 @@ class QueueTaskTest extends CakeTestCase {
 		$result = $this->QueueTask->find('first');
 		$this->assertEqual($result['QueueTask']['type_human'], 'model');
 		$this->assertEqual($result['QueueTask']['status_human'], 'queued');
+		$this->assertEqual($result['QueueTask']['execution_time'], 0);
 	}
 	
 	public function test_runModel(){
@@ -320,6 +402,10 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertEqual($this->QueueTask->field('status'), 3);
 		$executed = $this->QueueTask->field('executed');
 		$this->assertTrue(!empty($executed));
+		$start_time = $this->QueueTask->field('start_time');
+		$this->assertTrue(!empty($start_time));
+		$end_time = $this->QueueTask->field('end_time');
+		$this->assertTrue(!empty($end_time));
 	}
 	
 	public function test_runShell(){
@@ -338,6 +424,10 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertEqual($this->QueueTask->field('status'), 3);
 		$executed = $this->QueueTask->field('executed');
 		$this->assertTrue(!empty($executed));
+		$start_time = $this->QueueTask->field('start_time');
+		$this->assertTrue(!empty($start_time));
+		$end_time = $this->QueueTask->field('end_time');
+		$this->assertTrue(!empty($end_time));
 	}
 	
 	public function test_runUrl(){
@@ -356,6 +446,10 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertEqual($this->QueueTask->field('status'), 3);
 		$executed = $this->QueueTask->field('executed');
 		$this->assertTrue(!empty($executed));
+		$start_time = $this->QueueTask->field('start_time');
+		$this->assertTrue(!empty($start_time));
+		$end_time = $this->QueueTask->field('end_time');
+		$this->assertTrue(!empty($end_time));
 	}
 	
 	public function test_runPhpCmd(){
@@ -370,6 +464,10 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertEqual($this->QueueTask->field('status'), 3);
 		$executed = $this->QueueTask->field('executed');
 		$this->assertTrue(!empty($executed));
+		$start_time = $this->QueueTask->field('start_time');
+		$this->assertTrue(!empty($start_time));
+		$end_time = $this->QueueTask->field('end_time');
+		$this->assertTrue(!empty($end_time));
 	}
 	
 	public function test_runShellCmd(){
@@ -384,6 +482,10 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertEqual($this->QueueTask->field('status'), 3);
 		$executed = $this->QueueTask->field('executed');
 		$this->assertTrue(!empty($executed));
+		$start_time = $this->QueueTask->field('start_time');
+		$this->assertTrue(!empty($start_time));
+		$end_time = $this->QueueTask->field('end_time');
+		$this->assertTrue(!empty($end_time));
 	}
 	
 	public function test_runNoShell(){

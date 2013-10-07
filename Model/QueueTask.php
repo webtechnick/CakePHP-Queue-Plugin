@@ -29,6 +29,33 @@ class QueueTask extends QueueAppModel {
 				'message' => 'Specified Type is not allowed by your configuration file. check Config/queue.php'
 			)
 		),
+		'hour' => array(
+			'validHour' => array(
+				'rule' => array('range', -1, 24),
+				'message' => 'Hour must be between 0 and 23. (0 = Midnight)',
+				'allowEmpty' => true
+			)
+		),
+		'day' => array(
+			'validDay' => array(
+				'rule' => array('range', -1, 7),
+				'message' => 'Hour must be between 0 and 6. (0 = Sunday)',
+				'allowEmpty' => true
+			)
+		),
+		'cpu_limit' => array(
+			'validCpu' => array(
+				'rule' => array('range', -1, 101),
+				'message' => 'Cpu Percent Limit must be between 0 and 100.',
+				'allowEmpty' => true
+			)
+		),
+		'is_required' => array(
+			'boolean' => array(
+				'rule' => array('boolean'),
+				'message' => 'is_required must be a 0 or 1'
+			)
+		),
 		'command' => array(
 			'notempty' => array(
 				'rule' => array('notempty'),
@@ -39,6 +66,10 @@ class QueueTask extends QueueAppModel {
 				'message' => 'Command not valid for type.'
 			)
 		),
+	);
+
+	public $virtualFields = array(
+		'execution_time' => 'QueueTask.end_time - QueueTask.start_time'
 	);
 
 	/**
@@ -72,12 +103,12 @@ class QueueTask extends QueueAppModel {
 		4 => 'php_cmd',
 		5 => 'shell_cmd',
 	);
-	
+
 	/**
 	* Placeholder for shell
 	*/
 	public $Shell = null;
-	
+
 	/**
 	* Construct to load config setting if we have cache
 	*/
@@ -182,16 +213,23 @@ class QueueTask extends QueueAppModel {
 	/**
 	* Convience function utilized by Queue::add() library
 	* @param string command
-	* @param mixed type (string or int)
+	* @param string type
 	* @param array of options
-	*  - start = strtotime parsable string of when the task should be executed. (default null).
+	*  - hour = strtotime hour to execute. (11 pm | 23)  (default null)
+	*  - day  = strtotime day to execute. (Sunday | sun | 0) (default null)
+	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
 	* @return boolean success
 	*/
 	public function add($command, $type, $options = array()) {
+		if (!$command || !$type) {
+			return $this->__errorAndExit("Command and Type required to add Task to Queue.");
+		}
 		$options = array_merge(array(
-			'start' => null,
+			'hour' => null,
+			'day' => null,
+			'cpu_limit' => null,
 			'priority' => 100
 		), (array) $options);
 
@@ -199,18 +237,48 @@ class QueueTask extends QueueAppModel {
 			$type = $this->__findType($type);
 		}
 
-		$execute = $options['start'];
-		if ($options['start'] !== null) {
-			$execute = $this->str2datetime(($options['start']));
+		if ($options['hour'] !== null && !$this->isDigit($options['hour'])) {
+			$options['hour'] = $this->__findHour($options['hour']);
+		}
+
+		if ($options['day'] !== null && !$this->isDigit($options['day'])) {
+			$options['day'] = $this->__findDay($options['day']);
 		}
 
 		$data = array(
 			'priority' => $options['priority'],
 			'command' => $command,
 			'type' => $type,
-			'execute' => $execute
+			'hour' => $options['hour'],
+			'day' => $options['day'],
+			'cpu_limit' => $options['cpu_limit']
 		);
+		if ($options['day'] !== null || $options['hour'] !== null || $options['cpu_limit'] !== null) {
+			$data['is_restricted'] = true;
+		}
+		$this->clear();
 		return $this->save($data);
+	}
+
+	/**
+	* Remove is a wrapper for delete that will check in progress status before
+	* removing.
+	* @param string uuid
+	* @param boolean force - if true will bypass in progress check and delete task. (default false)
+	* @throws Exception.
+	* @return boolean
+	*/
+	public function remove($id = null, $force = false) {
+		if ($id) {
+			$this->id = $id;
+		}
+		if (!$this->exists()) {
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
+		}
+		if (!$force && $this->field('status') == 2) { //In progress
+			return $this->__errorAndExit("QueueTask {$this->id} is currently in progress.");
+		}
+		return $this->delete($id);
 	}
 	/**
 	* afterFind will add status_human and type_human to the result
@@ -243,13 +311,11 @@ class QueueTask extends QueueAppModel {
 	}
 	/**
 	* Generate the list of next 10 in queue.
+	* @param int limit of how many to return for next in queue
+	* @param boolean minimal fields returned
+	* @return array of tasks in order of execution next.
 	*/
-	public function next($limit = 10, $minimal = true, $use_cache = true) {
-		$cache_key = 'next_' . $limit . '_' . $minimal;
-		$cache = QueueUtil::readCache($cache_key);
-		if ($use_cache && $cache !== false) { //we might have cached an empty set, which is OK.
-			return $cache;
-		}
+	public function next($limit = 10, $minimal = true) {
 		$cpu = QueueUtil::currentCpu();
 		$hour = date('G');
 		$day = date('w');
@@ -300,7 +366,7 @@ class QueueTask extends QueueAppModel {
 				"{$this->alias}.status" => 1,
 			)
 		);
-		
+
 		$retval = array();
 		foreach ($conditions as $condition) {
 			$current_count = count($retval);
@@ -318,7 +384,6 @@ class QueueTask extends QueueAppModel {
 				$retval = array_merge($retval, $result);
 			}
 		}
-		QueueUtil::writeCache($cache_key, $retval);
 		return $retval;
 	}
 
@@ -328,7 +393,7 @@ class QueueTask extends QueueAppModel {
 	*/
 	public function runList($minimal = true) {
 		$limit = QueueUtil::getConfig('limit');
-		$in_progress = $this->inProgressCount(); 
+		$in_progress = $this->inProgressCount();
 		//If we have them in progress shortcut it.
 		if ($in_progress >= $limit) {
 			return array();
@@ -408,7 +473,7 @@ class QueueTask extends QueueAppModel {
 		if ($data[$this->alias]['status'] != 3) { //Finished
 			return false;
 		}
-		if (!ClassRegistry::init('Queue.QueueTaskLog')->save($data)){
+		if (!ClassRegistry::init('Queue.QueueTaskLog')->save($data['QueueTask'])) {
 			return false;
 		}
 		return $this->delete($this->id);
@@ -601,6 +666,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
+		$this->saveField('start_time', microtime(true));
 		return $this->saveField('status', 2);
 	}
 
@@ -616,6 +682,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
+		$this->saveField('end_time', microtime(true));
 		return $this->saveField('status', 4);
 	}
 
@@ -635,6 +702,7 @@ class QueueTask extends QueueAppModel {
 		}
 		$this->saveField('status', 3);
 		$this->saveField('result', json_encode($result));
+		$this->saveField('end_time', microtime(true));
 		$this->saveField('executed',$this->str2datetime());
 		if (QueueUtil::getConfig('archiveAfterExecute')) {
 			$this->archive($this->id);
@@ -654,6 +722,24 @@ class QueueTask extends QueueAppModel {
 			return $type;
 		}
 		return false;
+	}
+
+	/**
+	* Find the hour based on a string
+	* @param string '11 am'
+	* @return int hour to execute. 0 - 23
+	*/
+	private function __findHour($stringHour) {
+		return date('G', strtotime($stringHour));
+	}
+
+	/**
+	* Find the day based on a string
+	* @param string 'Sunday'
+	* @return int hour to execute. 0 - 6
+	*/
+	private function __findDay($stringDay) {
+		return date('w', strtotime($stringDay));
 	}
 
 	/**

@@ -20,19 +20,41 @@ class QueueShell extends AppShell {
 						'description' => array(
 							__('Use this command to add tasks to the queue')
 						),
+						'arguments' => array(
+							'command' => array(
+								'help' => __('The actual command string'),
+								'required' => true,
+								//'short' => 'c',
+							)
+						),
 						'options' => array(
 							'type' => array(
-								'help' => __('The type of command (model, shell, url, php_cmd, shell_cmd)'),
+								'help' => __('The type of task command.'),
 								'required' => true,
 								'short' => 't',
 								'default' => 'model',
 								'choices' => array_values($this->QueueTask->_types)
 							),
-							'command' => array(
-								'help' => __('The actual command string'),
-								'required' => true,
+							'hour' => array(
+								'help' => __('optional: Hour of the day to execute, 0-23 or strtotime parsable. \'11 pm\',\'23\' (default null = no restriction)'),
+								'short' => 'h',
+								'default' => null
+							),
+							'day' => array(
+								'help' => __('optional: Day of the week to execute, 0-6 or strtotime parsable. \'Sunday\',\'0\' (default null = no restriction)'),
+								'short' => 'd',
+								'default' => null
+							),
+							'cpu' => array(
+								'help' => __('optional: CPU Percent Limit to run task, 0-100. \'95\',\'10\' (default null = no restriction)'),
 								'short' => 'c',
-							)
+								'default' => null
+							),
+							'priority' => array(
+								'help' => __('optional: Priority of task, lower number the sooner it will run.  \'5\',\'100\''),
+								'short' => 'p',
+								'default' => 100
+							),
 						)
 					)
 				)
@@ -70,8 +92,20 @@ class QueueShell extends AppShell {
 	}
 	
 	public function add() {
-		if (Queue::add($this->params['command'], $this->params['type'])) {
-			$this->out('Task succesfully added.');
+		$command = array_shift($this->args);
+		$defaults = array(
+			'hour' => null,
+			'day' => null,
+			'cpu' => null,
+			'cpu_limit' => null,
+			'priority' => 100
+		);
+		$options = array_merge($defaults, (array) $this->params);
+		$options['cpu_limit'] = $options['cpu'];
+		$options = array_intersect_key($options, $defaults);
+
+		if (Queue::add($command, $this->params['type'], $options)) {
+			$this->out('Task succesfully added. ID:' . $this->QueueTask->id);
 		} else {
 			$this->out('Error adding task.');
 			$this->out();

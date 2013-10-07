@@ -1,6 +1,8 @@
 <?php
 /**
-* Utility Class to manage The Queue.
+* Queue Class to manage The Queue.
+* This class holds no real logic, is is more stubs to easily access
+* all aspects of managing the queue and plugin through a single Interface.
 *
 * @author Nick Baker
 * @since 1.0
@@ -23,6 +25,7 @@ class Queue extends Object {
 	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
+	* @return boolean success
 	*/
 	public static function add($command, $type = 'model', $options = array()) {
 		self::loadQueueTask();
@@ -32,11 +35,12 @@ class Queue extends Object {
 	/**
 	* Deletes a task from the queue.
 	* @param string uuid
+	* @param boolean force - if true will bypass in progress check and delete task. (default false)
 	* @return boolean success
 	*/
-	public static function delete($id = null) {
+	public static function remove($id = null, $force = false) {
 		self::loadQueuetask();
-		$retval = self::$QueueTask->delete($id);
+		$retval = self::$QueueTask->remove($id, $force);
 		QueueUtil::clearCache();
 		return $retval;
 	}

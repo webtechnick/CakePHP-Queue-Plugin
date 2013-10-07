@@ -65,4 +65,69 @@ class QueueUtil extends Object {
 
 		return null;
 	}
+
+	/**
+	* Config the cache if cache is set to config
+	*/
+	public static function configCache() {
+		if ($duration = self::getConfig('cache')) {
+			Cache::config('queue', array(
+				'engine' => 'File',
+				'duration' => $duration,
+				'path' => CACHE,
+				'prefix' => 'queue_'
+			));
+		}
+	}
+	/**
+	* Get the cache key config if we have cache setup
+	* @param string key
+	* @return mixed boolean false or 
+	*/
+	public static function readCache($key) {
+		if (self::getConfig('cache')) {
+			return Cache::read($key, 'queue');
+		}
+		return false;
+	}
+	/**
+	* Write the cache if we have a cache setup
+	* @param string key
+	* @param mixed value
+	* @return boolean success
+	*/
+	public static function writeCache($key, $value) {
+		if (self::getConfig('cache')) {
+			return Cache::write($key, $value, 'queue');
+		}
+		return false;
+	}
+	
+	/**
+	* Get the current Cpu Usage as a percentages
+	* Grabs from cache if we have it.
+	* @throws Exception 
+	* @return float current cpu percentage.
+	*/
+	public static function currentCpu() {
+		if ($cpu = self::readCache('cpu')) {
+			return $cpu;
+		}
+		$uptime = shell_exec('uptime');
+		if (empty($uptime) || strpos($uptime, 'load') === false) {
+			throw new Exception('Unable to retrieve load avearge from uptime.');
+		}
+		$uptime = explode(':', $uptime);
+		$averages = trim(array_pop($uptime));
+		list($min1, $min5, $min15) = explode(' ', $averages, 3);
+		$cores = self::getConfig('cores');
+		if (!$cores) {
+			$cores = 1;
+		}
+		$percent = ($min5 / $cores) * 100;
+		$percent = round($percent);
+		self::writeCache('cpu', $percent);
+		
+		return $percent;
+	}
 }

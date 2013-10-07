@@ -26,11 +26,21 @@ class Queue extends Object {
 		self::loadQueueTask();
 		return self::$QueueTask->add($command, $type, $options);
 	}
+	
+	/**
+	* Run a task specifically.
+	* @param string uuid
+	* @return boolean success
+	*/
+	public static function run($id = null) {
+		self::loadQueueTask();
+		return self::$QueueTask->run($id);
+	}
 
 	/**
 	* List upcoming tasks.
 	*/
-	public static function list() {
+	public static function show() {
 		//TODO
 	}
 	
@@ -47,7 +57,7 @@ class Queue extends Object {
 	* Return the in progress count
 	* @return int in progress count.
 	*/
-	public static function inProgress() {
+	public static function inProgressCount() {
 		self::loadQueueTask();
 		return self::$QueueTask->inProgressCount();
 	}

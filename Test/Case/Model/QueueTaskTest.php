@@ -49,6 +49,13 @@ class QueueTaskTest extends CakeTestCase {
 		parent::tearDown();
 	}
 	
+	public function test_next() {
+		$result = $this->QueueTask->next(2, true, false);
+		$this->assertEqual(count($result), 2);
+		$this->assertEqual('524b0c44-a3a0-4956-8428-dc3ee017215f', $result[0]['QueueTask']['id']);
+		$this->assertEqual('524b0c44-a3a0-4956-8428-dc3ee017215a', $result[1]['QueueTask']['id']);
+	}
+	
 	public function test_archive() {
 		QueueUtil::$configs['archiveAfterExecute'] = false;
 		$this->QueueTask->id = '524b0c44-a3a0-4956-8428-dc3ee017215a';

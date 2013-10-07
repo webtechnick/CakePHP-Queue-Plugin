@@ -77,6 +77,16 @@ class QueueTask extends QueueAppModel {
 	* Placeholder for shell
 	*/
 	public $Shell = null;
+	
+	/**
+	* Construct to load config setting if we have cache
+	*/
+	public function __construct($id = false, $table = null, $ds = null) {
+		if (QueueUtil::getConfig('cache')) {
+			QueueUtil::configCache();
+		}
+		return parent::__construct($id, $table, $ds);
+	}
 
 	/**
 	* Validataion of Type
@@ -231,39 +241,99 @@ class QueueTask extends QueueAppModel {
 			)
 		));
 	}
+	/**
+	* Generate the list of next 10 in queue.
+	*/
+	public function next($limit = 10, $minimal = true, $use_cache = true) {
+		$cache_key = 'next_' . $limit . '_' . $minimal;
+		$cache = QueueUtil::readCache($cache_key);
+		if ($use_cache && $cache !== false) { //we might have cached an empty set, which is OK.
+			return $cache;
+		}
+		$cpu = QueueUtil::currentCpu();
+		$hour = date('G');
+		$day = date('w');
+		$fields = $minimal ? array("{$this->alias}.id") : array("{$this->alias}.*");
+		//Set of conditions in order
+		$conditions = array(
+			array( //Look for restricted by hour, day and cpu usage. order by priority with limit - current retval
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.hour" => $hour,
+				"{$this->alias}.day" => $day,
+				"{$this->alias}.cpu_limit >=" => $cpu,
+			),
+			array( //Look for restricted by hour OR day and cpu usage. order by priority with limit - current retval
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				'OR' => array(
+					"{$this->alias}.hour" => $hour,
+					"{$this->alias}.day" => $day,
+				),
+				"{$this->alias}.cpu_limit >=" => $cpu,
+			),
+			array( //Look for restricted by hour and day. order by priority with limit - current retval
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.hour" => $hour,
+				"{$this->alias}.day" => $day,
+			),
+			array( //Look for restricted by day and cpu.
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.cpu_limit >=" => $cpu,
+				"{$this->alias}.day" => $day,
+			),
+			array( //Look for restricted by hour and cpu.
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.cpu_limit >=" => $cpu,
+				"{$this->alias}.hour" => $hour,
+			),
+			array( //Look for restricted by cpu.
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.cpu_limit >=" => $cpu,
+			),
+			array( //Unrestricted
+				"{$this->alias}.is_restricted" => false,
+				"{$this->alias}.status" => 1,
+			)
+		);
+		
+		$retval = array();
+		foreach ($conditions as $condition) {
+			$current_count = count($retval);
+			if ($current_count >= $limit) {
+				break;
+			}
+			$new_limit = $limit - $current_count;
+			$result = $this->find('all', array(
+				'limit' => $new_limit,
+				'order' => array("{$this->alias}.priority ASC"),
+				'fields' => $fields,
+				'conditions' => $condition
+			));
+			if (!empty($result)) {
+				$retval = array_merge($retval, $result);
+			}
+		}
+		QueueUtil::writeCache($cache_key, $retval);
+		return $retval;
+	}
 
 	/**
-	* Get the run list of what needs to be ran.
-	* @param boolean minimal return true
+	* Returns a list to run.
 	* @return array set of queues to run.
 	*/
 	public function runList($minimal = true) {
+		$limit = QueueUtil::getConfig('limit');
+		$in_progress = $this->inProgressCount(); 
 		//If we have them in progress shortcut it.
-		if ($this->inProgressCount() >= QueueUtil::getConfig('limit')) {
+		if ($in_progress >= $limit) {
 			return array();
 		}
-		$fields = $minimal ? array("{$this->alias}.id") : array("{$this->alias}.*");
-		return $this->find('all', array(
-			'conditions' => array(
-				'OR' => array(
-					array(
-						'AND' => array(
-							"{$this->alias}.execute" => null,
-							"{$this->alias}.status" => 1 //queued
-						)
-					),
-					array(
-						'AND' => array(
-							"{$this->alias}.execute <=" => date('Y-m-d'),
-							"{$this->alias}.status" => 1//queued
-						)
-					)
-				)
-			),
-			'fields' => $fields,
-			'limit' => QueueUtil::getConfig('limit'),
-			'order' => array("{$this->alias}.priority ASC")
-		));
+		return $this->next($limit - $in_progress, $minimal);
 	}
 
 	/**

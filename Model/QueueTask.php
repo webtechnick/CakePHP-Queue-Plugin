@@ -444,6 +444,18 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
+	* Find tasks that are currently in progress
+	* @return array of tasks in progress
+	*/
+	public function findInProgress() {
+		return $this->find('all', array(
+			'conditions' => array(
+				"{$this->alias}.status" => 2 //in progress
+			)
+		));
+	}
+
+	/**
 	* Set and error and return false
 	* @param string message
 	* @return false

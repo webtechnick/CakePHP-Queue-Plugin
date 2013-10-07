@@ -104,6 +104,13 @@ class QueueUtil extends Object {
 	}
 	
 	/**
+	* Clears all cache.
+	*/
+	public static function clearCache() {
+		return Cache::clear(false, 'queue');
+	}
+	
+	/**
 	* Get the current Cpu Usage as a percentages
 	* Grabs from cache if we have it.
 	* @throws Exception 

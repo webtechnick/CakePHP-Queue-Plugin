@@ -18,13 +18,25 @@ class Queue extends Object {
 	* @param string command
 	* @param string type
 	* @param array of options
-	*  - start = strtotime parsable string of when the task should be executed. (default null).
+	*  - hour = strtotime hour to execute. (11 pm | 23)  (default null)
+	*  - day  = strtotime day to execute. (Sunday | sun | 0) (default null)
+	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
 	*/
 	public static function add($command, $type = 'model', $options = array()) {
 		self::loadQueueTask();
 		return self::$QueueTask->add($command, $type, $options);
+	}
+
+	/**
+	* Deletes a task from the queue.
+	* @param string uuid
+	* @return boolean success
+	*/
+	public static function delete($id = null) {
+		self::loadQueuetask();
+		return self::$QueueTask->delete($id);
 	}
 	
 	/**
@@ -38,10 +50,12 @@ class Queue extends Object {
 	}
 
 	/**
-	* List upcoming tasks.
+	* List next X upcomming tasks.
+	* @param int limit
 	*/
-	public static function show() {
-		//TODO
+	public static function next($limit = 10) {
+		self::loadQueueTask();
+		return self::$QueueTask->next($limit, false);
 	}
 	
 	/**
@@ -54,6 +68,15 @@ class Queue extends Object {
 	}
 
 	/**
+	* Returns the tasks in progress.
+	* @return array of tasks currently in progress
+	*/
+	public static function inProgress() {
+		self::loadQueueTask();
+		return self::$Queuetask->findInProgress();
+	}
+
+	/**
 	* Return the in progress count
 	* @return int in progress count.
 	*/
@@ -61,7 +84,10 @@ class Queue extends Object {
 		self::loadQueueTask();
 		return self::$QueueTask->inProgressCount();
 	}
-	
+
+	/**
+	* Load the QueueTask Model instance
+	*/
 	public static function loadQueueTask() {
 		if (!self::$QueueTask) {
 			App::uses('QueueTask','Queue.Model');

@@ -6,7 +6,7 @@
   */
 $config = array(
 	'Queue' => array(
-		'log' => true, //logs every action taken.
+		'log' => true, //logs every task run in a log file.
 		'limit' => 1, //limit how many queues can run at a time. (default 1).
 		'allowedTypes' => array( //restrict what type of command can be queued.
 			1, //model

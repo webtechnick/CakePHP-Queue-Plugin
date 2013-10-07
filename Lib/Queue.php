@@ -14,6 +14,10 @@ class Queue extends Object {
 	* Placeholder for Task
 	*/
 	private static $QueueTask = null;
+	/**
+	* Placeholder for TaskLog
+	*/
+	private static $QueueTaskLog = null;
 
 	/**
 	* Quick add feature to QueueTask. This is how the majority of queues will be added
@@ -56,6 +60,22 @@ class Queue extends Object {
 	}
 
 	/**
+	* View the task as a string representation looks in QueueTask and QueueTaskLog
+	* @param string uuid
+	* @return string representation of task.
+	*/
+	public static function view($id = null) {
+		self::loadQueueTask();
+		if (self::$QueueTask->hasAny(array('QueueTask.id' => $id))) {
+			return self::$QueueTask->niceString($id);
+		}
+		self::loadQueueTaskLog();
+		if (self::$QueueTaskLog->hasAny(array('QueueTaskLog.id' => $id))) {
+			return self::$QueueTaskLog->niceString($id);
+		}
+		return false;
+	}
+	/**
 	* List next X upcomming tasks.
 	* @param int limit
 	*/
@@ -79,7 +99,7 @@ class Queue extends Object {
 	*/
 	public static function inProgress() {
 		self::loadQueueTask();
-		return self::$Queuetask->findInProgress();
+		return self::$QueueTask->findInProgress();
 	}
 
 	/**
@@ -98,6 +118,15 @@ class Queue extends Object {
 		if (!self::$QueueTask) {
 			App::uses('QueueTask','Queue.Model');
 			self::$QueueTask = ClassRegistry::init('Queue.QueueTask');
+		}
+	}
+	/**
+	* Load the QueueTask Model instance
+	*/
+	public static function loadQueueTaskLog() {
+		if (!self::$QueueTaskLog) {
+			App::uses('QueueTaskLog','Queue.Model');
+			self::$QueueTaskLog = ClassRegistry::init('Queue.QueueTaskLog');
 		}
 	}
 }

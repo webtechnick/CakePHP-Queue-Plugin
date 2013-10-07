@@ -113,7 +113,16 @@ class QueueUtil extends Object {
 		}
 		return true;
 	}
-	
+
+	/**
+	* Write log if we have logging on.
+	* @param string message to write
+	*/
+	public static function writeLog($message) {
+		if (self::getConfig('log')) {
+			CakeLog::write('queue', $message);
+		}
+	}
 	/**
 	* Get the current Cpu Usage as a percentages
 	* Grabs from cache if we have it.

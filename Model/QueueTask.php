@@ -1,4 +1,24 @@
 <?php
+/**
+* QueueTask model, these are tasks that are put into the Queue.
+* This model also handles the queue itself but `DO NOT` interface
+* with it directly.  Use the Queue.Lib to interface with your queue.
+* 
+* @example
+ App::uses('Queue', 'Queue.Lib');
+ Queue::add();              //adds a task to the queue.
+ Queue::remove();           //safely remove a task from the queue.  
+ Queue::next('10');         //see next X items in the queue to execute
+ Queue::inProgress();       //See what tasks are currently in progress
+ Queue::inProgressCount();  //Get count of how many tasks are currently running
+ Queue::process();          //Process the Queue.
+ 
+ //Please refer to Documentation in Queue.Lib for how to add items propery to the queue.
+*
+* @author Nick
+* @since 1.0
+* @license MIT
+*/
 App::uses('QueueAppModel', 'Queue.Model');
 class QueueTask extends QueueAppModel {
 
@@ -79,31 +99,6 @@ class QueueTask extends QueueAppModel {
 	public $searchFields = array(
 		'QueueTask.command','QueueTask.id','QueueTask.status','QueueTask.type'
 	);
-
-	/**
-	* Status key to human readable
-	* @var array
-	* @access protected
-	*/
-	protected $_statuses = array(
-		1 => 'queued',
-		2 => 'in progress',
-		3 => 'finished',
-		4 => 'paused',
-	);
-	/**
-	* type key to human readable
-	* @var array
-	* @access protected
-	*/
-	protected $_types = array(
-		1 => 'model',
-		2 => 'shell',
-		3 => 'url',
-		4 => 'php_cmd',
-		5 => 'shell_cmd',
-	);
-
 	/**
 	* Placeholder for shell
 	*/
@@ -118,7 +113,17 @@ class QueueTask extends QueueAppModel {
 		}
 		return parent::__construct($id, $table, $ds);
 	}
-
+	/**
+	* Assign the user_id if we have one.
+	* @param array options
+	* @return boolean success
+	*/
+	public function beforeSave($options = array()) {
+		if ($user_id = $this->getCurrentUser('id')) {
+			$this->data[$this->alias]['user_id'] = $user_id;
+		}
+		return parent::beforeSave($options);
+	}
 	/**
 	* Validataion of Type
 	* @param array field
@@ -199,18 +204,6 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
-	* Assign the user_id if we have one.
-	* @param array options
-	* @return boolean success
-	*/
-	public function beforeSave($options = array()) {
-		if ($user_id = $this->getCurrentUser('id')) {
-			$this->data[$this->alias]['user_id'] = $user_id;
-		}
-		return parent::beforeSave($options);
-	}
-
-	/**
 	* Convience function utilized by Queue::add() library
 	* @param string command
 	* @param string type
@@ -281,24 +274,6 @@ class QueueTask extends QueueAppModel {
 		return $this->delete($id);
 	}
 	/**
-	* afterFind will add status_human and type_human to the result
-	* human readable and understandable type and status.
-	* @param array of results
-	* @param boolean primary
-	* @return array of altered results
-	*/
-	public function afterFind($results = array(), $primary = false){
-		foreach ($results as $key => $val) {
-			if (isset($val[$this->alias]['type'])) {
-				$results[$key][$this->alias]['type_human'] = $this->_types[$val[$this->alias]['type']];
-			}
-			if (isset($val[$this->alias]['status'])) {
-				$results[$key][$this->alias]['status_human'] = $this->_statuses[$val[$this->alias]['status']];
-			}
-		}
-		return $results;
-	}
-	/**
 	* Return count of in progress queues
 	* @return int number of running queues.
 	*/
@@ -316,6 +291,10 @@ class QueueTask extends QueueAppModel {
 	* @return array of tasks in order of execution next.
 	*/
 	public function next($limit = 10, $minimal = true) {
+		//If we don't have any queued in table just exit with empty set.
+		if (!$this->hasAny(array("{$this->alias}.status" => 1))) {
+			return array();
+		}
 		$cpu = QueueUtil::currentCpu();
 		$hour = date('G');
 		$day = date('w');
@@ -519,7 +498,6 @@ class QueueTask extends QueueAppModel {
 			)
 		));
 	}
-
 	/**
 	* Set and error and return false
 	* @param string message
@@ -528,6 +506,7 @@ class QueueTask extends QueueAppModel {
 	*/
 	private function __errorAndExit($message) {
 		$this->errors[$this->id][] = $message;
+		QueueUtil::writeLog('Error: ' . $message);
 		return false;
 	}
 
@@ -666,6 +645,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
+		QueueUtil::writeLog('Starting Execution on Task: ' . $this->id);
 		$this->saveField('start_time', microtime(true));
 		return $this->saveField('status', 2);
 	}
@@ -682,6 +662,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
+		QueueUtil::writeLog('Pausing Task: ' . $this->id);
 		$this->saveField('end_time', microtime(true));
 		return $this->saveField('status', 4);
 	}
@@ -700,10 +681,12 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
+		$save_result = json_encode($result);
 		$this->saveField('status', 3);
-		$this->saveField('result', json_encode($result));
+		$this->saveField('result', $save_result);
 		$this->saveField('end_time', microtime(true));
 		$this->saveField('executed',$this->str2datetime());
+		QueueUtil::writeLog('Finished Execution on Task: ' . $this->id . "\nTook: " . $this->field('execution_time') . "\nResult:\n\n" . $save_result);
 		if (QueueUtil::getConfig('archiveAfterExecute')) {
 			$this->archive($this->id);
 		}

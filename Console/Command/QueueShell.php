@@ -1,4 +1,10 @@
 <?php
+/**
+* QueueShell to manage your queue via the command line
+* @author Nick Baker
+* @since 1.0
+* @license MIT
+*/
 App::uses('Shell', 'Console');
 App::uses('AppShell', 'Console/Command');
 App::uses('Queue', 'Queue.Lib');
@@ -74,12 +80,72 @@ class QueueShell extends AppShell {
 					)
 				)
 			)
-			->addSubcommand('show', array(
-				'help' => __('Show what is queued.')))
+			->addSubcommand('view', array(
+					'help' => __('View a task in the queue.'),
+					'parser' => array(
+						'description' => array(
+							__('Use this command to view a paticular queue. Including results.')
+						),
+						'arguments' => array(
+							'id' => array(
+								'help' => __('UUID of queue to view'),
+								'required' => true,
+							)
+						)
+					)
+				)
+			)
+			->addSubcommand('next', array(
+					'help' => __('Show what is queued.'),
+					'parser' => array(
+						'description' => array(
+							__('Use this command to see what X next in queue.')
+						),
+						'arguments' => array(
+							'limit' => array(
+								'help' => __('INT of how many you want to see in the future, \`10\`,\'5\''),
+								'required' => true,
+								'default' => 10
+							)
+						)
+					)
+				)
+			)
 			->addSubcommand('process', array(
-				'help' => __('Process the queue, run the next thing.')))
-			->addSubcommand('archive', array(
-				'help' => __('Archive a task in the queue.')));
+					'help' => __('Process the queue, runs the next limit items on the queue.')
+				)
+			)
+			->addSubcommand('in_progress', array(
+					'help' => __('Show the queues in progress.')
+				)
+			)
+			->addSubcommand('in_progress_count', array(
+					'help' => __('Show the in progress count.')
+				)
+			)
+			->addSubcommand('remove', array(
+					'help' => __('Remove a task from the queue.'),
+					'parser' => array(
+						'description' => array(
+							__('Use this command to remove a paticular task.')
+						),
+						'arguments' => array(
+							'id' => array(
+								'help' => __('UUID of task to remove. Will not remove in_process tasks.'),
+								'required' => true,
+							)
+						),
+						'options' => array(
+							'force' => array(
+								'help' => __('if true will force a delete even on in_progress tasks.'),
+								'boolean' => true,
+								'short' => 'f',
+								'default' => false
+							)
+						)
+					)
+				)
+			);
 	}
 
 /**
@@ -105,7 +171,8 @@ class QueueShell extends AppShell {
 		$options = array_intersect_key($options, $defaults);
 
 		if (Queue::add($command, $this->params['type'], $options)) {
-			$this->out('Task succesfully added. ID:' . $this->QueueTask->id);
+			$this->out('Task succesfully added. ID:' . $this->QueueTask->id, 1, Shell::QUIET);
+			$this->out(Queue::view($this->QueueTask->id));
 		} else {
 			$this->out('Error adding task.');
 			$this->out();
@@ -113,13 +180,31 @@ class QueueShell extends AppShell {
 		}
 	}
 	
-	public function run() {
-		$this->out('Running ' . $this->params['id']);
-		if (Queue::run($this->params['id'])) {
-			$this->out('Success.');
-			//TODO return the result of the QueueTask.result
+	public function remove() {
+		$id = array_shift($this->args);
+		$this->out('Removing ' . $id);
+		if (Queue::remove($id, $this->params['force'])) {
+			$this->out('Queue Removed.');
 		} else {
-			$this->out('Failed to run task.');
+			$this->out('Failed to remove Queue.');
+			$this->out(Queue::view($id));
+		}
+	}
+	
+	public function view() {
+		$id = array_shift($this->args);
+		$this->out(Queue::view($id));
+	}
+	
+	public function run() {
+		$id = array_shift($this->args);
+		$this->out('Running ' . $id);
+		if (Queue::run($id)) {
+			$this->out('Success.');
+			$this->out(Queue::view($id));
+			$this->out();
+		} else {
+			$this->out('Failed to run task. Check logs.');
 		}
 	}
 	
@@ -128,17 +213,36 @@ class QueueShell extends AppShell {
 		if (Queue::process()) {
 			$this->out('Success.');
 		} else {
-			$this->out('One or more failed, check log.');
+			$this->out('One or more failed, Check logs.');
 		}
 	}
 	
-	public function show() {
-	}
-	
-	public function archive() {
+	public function next() {
+		$limit = array_shift($this->args);
+		$this->out('Retrieving Queue List.');
+		$queue = Queue::next($limit, false);
+		$i = 1;
+		foreach ($queue as $task) {
+			$this->out($i . ') ' .  Queue::view($task['QueueTask']['id']));
+			$i++;
+		}
 	}
 	
 	public function in_progress() {
-		
+		$this->out('Retrieving In Progress Queues.');
+		$queue = Queue::inProgress();
+		if (empty($queues)) {
+			$this->out('No Tasks currently running.');
+			exit(1);
+		}
+		$i = 1;
+		foreach ($queue as $task) {
+			$this->out($i . ') ' .  Queue::view($task['QueueTask']['id']));
+			$i++;
+		}
+	}
+	
+	public function in_progress_count() {
+		$this->out(Queue::inProgressCount(), 1, Shell::QUIET);
 	}
 }

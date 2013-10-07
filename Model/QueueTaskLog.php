@@ -12,4 +12,8 @@ class QueueTaskLog extends QueueAppModel {
 	 * @var string
 	 */
 	public $displayField = 'type';
+	
+	public $virtualFields = array(
+		'execution_time' => 'QueueTaskLog.end_time - QueueTaskLog.start_time'
+	);
 }

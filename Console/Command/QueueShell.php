@@ -41,14 +41,19 @@ class QueueShell extends AppShell {
 								'default' => 'model',
 								'choices' => array_values($this->QueueTask->_types)
 							),
-							'hour' => array(
-								'help' => __('optional: Hour of the day to execute, 0-23 or strtotime parsable. \'11 pm\',\'23\' (default null = no restriction)'),
-								'short' => 'h',
+							'start' => array(
+								'help' => __('optional: strtotime parsable scheduled date to execute. \'Sunday 11 pm\',\'Tuesday 2 am\' (default null = no restriction)'),
+								'short' => 's',
 								'default' => null
 							),
-							'day' => array(
-								'help' => __('optional: Day of the week to execute, 0-6 or strtotime parsable. \'Sunday\',\'0\' (default null = no restriction)'),
-								'short' => 'd',
+							'end' => array(
+								'help' => __('optional: strtotime parsable scheduled end date to execute. \'Monday 4am\' (default null = no restriction)'),
+								'short' => 'e',
+								'default' => null
+							),
+							'reschedule' => array(
+								'help' => __('optional: string of addition to scheduled if window of start and end are missed. Parsable by strtotime. \'+1 day\', \'+1 week\' (default null, required if end is not null)'),
+								'short' => 'r',
 								'default' => null
 							),
 							'cpu' => array(
@@ -160,8 +165,9 @@ class QueueShell extends AppShell {
 	public function add() {
 		$command = array_shift($this->args);
 		$defaults = array(
-			'hour' => null,
-			'day' => null,
+			'start' => null,
+			'end' => null,
+			'reschedule' => null,
 			'cpu' => null,
 			'cpu_limit' => null,
 			'priority' => 100
@@ -171,7 +177,7 @@ class QueueShell extends AppShell {
 		$options = array_intersect_key($options, $defaults);
 
 		if (Queue::add($command, $this->params['type'], $options)) {
-			$this->out('Task succesfully added. ID:' . $this->QueueTask->id, 1, Shell::QUIET);
+			$this->out('Task succesfully added.', 1, Shell::QUIET);
 			$this->out(Queue::view($this->QueueTask->id));
 		} else {
 			$this->out('Error adding task.');

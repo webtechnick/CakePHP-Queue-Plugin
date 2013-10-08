@@ -93,15 +93,21 @@ class QueueTaskTest extends CakeTestCase {
 	public function test_addRestricted() {
 		//Validation rules are tested, test restricted
 		$count = $this->QueueTask->find('count');
-		$result = $this->QueueTask->add("Model::action()", 'model', array('hour' => '11 pm', 'day' => 'Monday', 'cpu_limit' => 95));
+		$result = $this->QueueTask->add("Model::action()", 'model', array(
+			'start' => 'Sunday 11 pm', 
+			'end' => 'Monday 5 am',
+			'reschedule' => '+1 week',
+			'cpu_limit' => 95,
+		));
 		$this->assertTrue(!empty($result));
 		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
 		$this->assertTrue($this->QueueTask->field('is_restricted'));
-		$this->assertEqual($this->QueueTask->field('hour'), 23);
-		$this->assertEqual($this->QueueTask->field('day'), 1);
 		$this->assertEqual($this->QueueTask->field('cpu_limit'), 95);
 		$this->assertEqual($this->QueueTask->field('type'), 1);
 		$this->assertEqual($this->QueueTask->field('priority'), 100);
+		$this->assertTrue(!empty($result['QueueTask']['scheduled']));
+		$this->assertTrue(!empty($result['QueueTask']['scheduled_end']));
+		$this->assertTrue(!empty($result['QueueTask']['reschedule']));
 	}
 	
 	public function test_addNormal_minimal() {
@@ -110,8 +116,9 @@ class QueueTaskTest extends CakeTestCase {
 		$this->assertTrue(!empty($result));
 		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
 		$this->assertFalse($this->QueueTask->field('is_restricted'));
-		$this->assertEqual($this->QueueTask->field('hour'), null);
-		$this->assertEqual($this->QueueTask->field('day'), null);
+		$this->assertEqual($this->QueueTask->field('scheduled'), null);
+		$this->assertEqual($this->QueueTask->field('scheduled_end'), null);
+		$this->assertEqual($this->QueueTask->field('reschedule'), null);
 		$this->assertEqual($this->QueueTask->field('cpu_limit'), null);
 		$this->assertEqual($this->QueueTask->field('type'), 1);
 		$this->assertEqual($this->QueueTask->field('priority'), 100);
@@ -119,12 +126,15 @@ class QueueTaskTest extends CakeTestCase {
 	
 	public function test_addNormal_extra() {
 		$count = $this->QueueTask->find('count');
-		$result = $this->QueueTask->add("Model::action()", 1, array('priority' => 50));
+		$result = $this->QueueTask->add("Model::action()", 1, array(
+			'priority' => 50,
+		));
 		$this->assertTrue(!empty($result));
 		$this->assertEqual($this->QueueTask->find('count'), $count + 1);
 		$this->assertFalse($this->QueueTask->field('is_restricted'));
-		$this->assertEqual($this->QueueTask->field('hour'), null);
-		$this->assertEqual($this->QueueTask->field('day'), null);
+		$this->assertEqual($this->QueueTask->field('scheduled'), null);
+		$this->assertEqual($this->QueueTask->field('scheduled_end'), null);
+		$this->assertEqual($this->QueueTask->field('reschedule'), null);
 		$this->assertEqual($this->QueueTask->field('cpu_limit'), null);
 		$this->assertEqual($this->QueueTask->field('type'), 1);
 		$this->assertEqual($this->QueueTask->field('priority'), 50);

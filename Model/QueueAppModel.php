@@ -90,13 +90,25 @@ class QueueAppModel extends AppModel {
   /**
   * String to datetime stamp
   * @param string that is parsable by str2time
+  * @param boolean future, force future time incriment by week.
   * @return date time string for MYSQL
   */
-  function str2datetime($str = 'now') {
+  function str2datetime($str = 'now', $future = false) {
   	if (is_array($str) && isset($str['month']) && isset($str['day']) && isset($str['year'])) {
   		$str = "{$str['month']}/{$str['day']}/{$str['year']}";
   	}
-  	return date("Y-m-d H:i:s", strtotime($str));
+  	$format = "Y-m-d H:i:s";
+  	$retval = date($format, strtotime($str));
+  	if ($future) {
+  		$retvaltime = strtotime($retval);
+  		$time = time();
+  		$weektime = 604800; //seconds in a week
+  		while ($retvaltime < $time) {
+  			$retvaltime += $weektime;
+  		}
+  		$retval = date($format, $retvaltime);
+  	}
+  	return $retval;
   }
  
   /**
@@ -138,16 +150,20 @@ class QueueAppModel extends AppModel {
 		$data = $this->read();
 		$retval = $data[$this->alias]['id'] . ' ' . $data[$this->alias]['status_human'] . ' ' . $data[$this->alias]['type_human'];
 		$retval .= "\n\tCommand: " . $data[$this->alias]['command'];
+		$retval .= "\n\tPriority: " . $data[$this->alias]['priority'];
 		if ($data[$this->alias]['is_restricted']) {
 			$retval .= "\n\tRestricted By:";
-			if ($data[$this->alias]['hour'] !== null) {
-				$retval .= " Hour:{$data[$this->alias]['hour']}";
-			}
-			if ($data[$this->alias]['day'] !== null) {
-				$retval .= " Day:{$data[$this->alias]['day']}";
+			if ($data[$this->alias]['scheduled'] !== null) {
+				$retval .= "\n\t\tStart: {$data[$this->alias]['scheduled']}";
+				if ($data[$this->alias]['scheduled_end'] !== null) {
+					$retval .= "\n\t\tEnd: {$data[$this->alias]['scheduled_end']}";
+				}
+				if ($data[$this->alias]['reschedule'] !== null) {
+					$retval .= "\n\t\tReschedule: {$data[$this->alias]['reschedule']}";
+				}
 			}
 			if ($data[$this->alias]['cpu_limit'] !== null) {
-				$retval .= " CPU<={$data[$this->alias]['cpu_limit']}%";
+				$retval .= "\n\t\tCPU <= {$data[$this->alias]['cpu_limit']}%";
 			}
 		}
 		if ($data[$this->alias]['status'] == 3 && !empty($data[$this->alias]['executed'])) { //Finished

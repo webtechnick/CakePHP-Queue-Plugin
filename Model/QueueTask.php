@@ -49,18 +49,24 @@ class QueueTask extends QueueAppModel {
 				'message' => 'Specified Type is not allowed by your configuration file. check Config/queue.php'
 			)
 		),
-		'hour' => array(
-			'validHour' => array(
-				'rule' => array('range', -1, 24),
-				'message' => 'Hour must be between 0 and 23. (0 = Midnight)',
+		'scheduled' => array(
+			'datetime' => array(
+				'rule' => array('datetime'),
+				'message' => 'Must be a valid date time stamp.',
 				'allowEmpty' => true
 			)
 		),
-		'day' => array(
-			'validDay' => array(
-				'rule' => array('range', -1, 7),
-				'message' => 'Hour must be between 0 and 6. (0 = Sunday)',
+		'scheduled_end' => array(
+			'validWindow' => array(
+				'rule' => array('datetime'),
+				'message' => 'Must be a valid datetime stamp, or null.',
 				'allowEmpty' => true
+			)
+		),
+		'reschedule' => array(
+			'validReschedule' => array(
+				'rule' => array('validReschedule'),
+				'message' => 'Cannot be empty when schedule_end is not null.  Must be a strtotime parsable string.',
 			)
 		),
 		'cpu_limit' => array(
@@ -143,6 +149,17 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
+	* Cannot be null unless scheduled_end is also null
+	* @param arry field
+	* @return boolean if valid
+	*/
+	public function validReschedule($field) {
+		if (isset($this->data[$this->alias]['scheduled_end']) && !empty($this->data[$this->alias]['scheduled_end']) && empty($field['reschedule'])) {
+			return false;
+		}
+		return true;
+	}
+	/**
 	* Validataion of Command
 	* @param array field
 	* @return boolean if valid
@@ -200,7 +217,7 @@ class QueueTask extends QueueAppModel {
 	*/
 	public function allowedType($field) {
 		$allowedTypes = QueueUtil::getConfig('allowedTypes');
-		return isset($allowedTypes[$field['type']]);
+		return in_array($field['type'], $allowedTypes);
 	}
 
 	/**
@@ -208,8 +225,9 @@ class QueueTask extends QueueAppModel {
 	* @param string command
 	* @param string type
 	* @param array of options
-	*  - hour = strtotime hour to execute. (11 pm | 23)  (default null)
-	*  - day  = strtotime day to execute. (Sunday | sun | 0) (default null)
+	*  - start     = strtotime datetime to execute. Will assume future date. (11 pm Sunday)  (default null)
+	*  - end       = strtotime datetime of window allowed to execute (5 am Monday) (default null)
+	*  - reschedule = strtotime addition to scheduled to execute. (+1 day | +1 week) (default null)
 	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
@@ -220,33 +238,37 @@ class QueueTask extends QueueAppModel {
 			return $this->__errorAndExit("Command and Type required to add Task to Queue.");
 		}
 		$options = array_merge(array(
-			'hour' => null,
-			'day' => null,
+			'start' => null,
+			'end' => null,
+			'reschedule' => null,
 			'cpu_limit' => null,
-			'priority' => 100
+			'priority' => 100,
+			'scheduled' => null,
+			'scheduled_end' => null,
 		), (array) $options);
 
 		if (!$this->isDigit($type)) {
 			$type = $this->__findType($type);
 		}
 
-		if ($options['hour'] !== null && !$this->isDigit($options['hour'])) {
-			$options['hour'] = $this->__findHour($options['hour']);
+		if ($options['start'] !== null) {
+			$options['scheduled'] = $this->str2datetime($options['start']);
 		}
 
-		if ($options['day'] !== null && !$this->isDigit($options['day'])) {
-			$options['day'] = $this->__findDay($options['day']);
+		if ($options['end'] !== null) {
+			$options['scheduled_end'] = $this->str2datetime($options['end'], true);
 		}
 
 		$data = array(
 			'priority' => $options['priority'],
 			'command' => $command,
 			'type' => $type,
-			'hour' => $options['hour'],
-			'day' => $options['day'],
+			'scheduled' => $options['scheduled'],
+			'scheduled_end' => $options['scheduled_end'],
+			'reschedule' => $options['reschedule'],
 			'cpu_limit' => $options['cpu_limit']
 		);
-		if ($options['day'] !== null || $options['hour'] !== null || $options['cpu_limit'] !== null) {
+		if ($options['scheduled'] !== null || $options['cpu_limit'] !== null) {
 			$data['is_restricted'] = true;
 		}
 		$this->clear();
@@ -288,56 +310,41 @@ class QueueTask extends QueueAppModel {
 	* Generate the list of next 10 in queue.
 	* @param int limit of how many to return for next in queue
 	* @param boolean minimal fields returned
+	* @param processing, if true only return true set of what needs to be executed next NOW
 	* @return array of tasks in order of execution next.
 	*/
-	public function next($limit = 10, $minimal = true) {
+	public function next($limit = 10, $minimal = true, $processing = true) {
 		//If we don't have any queued in table just exit with empty set.
 		if (!$this->hasAny(array("{$this->alias}.status" => 1))) {
 			return array();
 		}
 		$cpu = QueueUtil::currentCpu();
-		$hour = date('G');
-		$day = date('w');
+		$now = $this->str2datetime();
 		$fields = $minimal ? array("{$this->alias}.id") : array("{$this->alias}.*");
 		//Set of conditions in order
 		$conditions = array(
-			array( //Look for restricted by hour, day and cpu usage. order by priority with limit - current retval
+			array( //Look for restricted by scheduled and with a window with cpu
 				"{$this->alias}.is_restricted" => true,
 				"{$this->alias}.status" => 1,
-				"{$this->alias}.hour" => $hour,
-				"{$this->alias}.day" => $day,
-				"{$this->alias}.cpu_limit >=" => $cpu,
-			),
-			array( //Look for restricted by hour OR day and cpu usage. order by priority with limit - current retval
-				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1,
+				"{$this->alias}.scheduled <=" => $now,
 				'OR' => array(
-					"{$this->alias}.hour" => $hour,
-					"{$this->alias}.day" => $day,
+					array("{$this->alias}.scheduled_end >=" => $now),
+					array("{$this->alias}.scheduled_end" => null),
+				), 
+				"{$this->alias}.cpu_limit >=" => $cpu,
+			),
+			array( //Look for restricted by scheduled and with a window
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.scheduled <=" => $now,
+				'OR' => array(
+					array("{$this->alias}.scheduled_end >=" => $now),
+					array("{$this->alias}.scheduled_end" => null),
 				),
-				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
-			array( //Look for restricted by hour and day. order by priority with limit - current retval
+			array( //Look for restricted by cpu
 				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1,
-				"{$this->alias}.hour" => $hour,
-				"{$this->alias}.day" => $day,
-			),
-			array( //Look for restricted by day and cpu.
-				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1,
-				"{$this->alias}.cpu_limit >=" => $cpu,
-				"{$this->alias}.day" => $day,
-			),
-			array( //Look for restricted by hour and cpu.
-				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1,
-				"{$this->alias}.cpu_limit >=" => $cpu,
-				"{$this->alias}.hour" => $hour,
-			),
-			array( //Look for restricted by cpu.
-				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1,
+				"{$this->alias}.status" => 1, 
 				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
 			array( //Unrestricted
@@ -345,6 +352,14 @@ class QueueTask extends QueueAppModel {
 				"{$this->alias}.status" => 1,
 			)
 		);
+
+		if (!$processing) {
+			$conditions[] = array( //Future scheduled
+				"{$this->alias}.is_restricted" => true,
+				"{$this->alias}.status" => 1,
+				"{$this->alias}.scheduled >=" => $now,
+			);
+		}
 
 		$retval = array();
 		foreach ($conditions as $condition) {
@@ -355,7 +370,7 @@ class QueueTask extends QueueAppModel {
 			$new_limit = $limit - $current_count;
 			$result = $this->find('all', array(
 				'limit' => $new_limit,
-				'order' => array("{$this->alias}.priority ASC"),
+				'order' => array("{$this->alias}.scheduled ASC, {$this->alias}.priority ASC"),
 				'fields' => $fields,
 				'conditions' => $condition
 			));
@@ -367,7 +382,7 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
-	* Returns a list to run.
+	* Returns a list to run. Processing list
 	* @return array set of queues to run.
 	*/
 	public function runList($minimal = true) {
@@ -377,7 +392,7 @@ class QueueTask extends QueueAppModel {
 		if ($in_progress >= $limit) {
 			return array();
 		}
-		return $this->next($limit - $in_progress, $minimal);
+		return $this->next($limit - $in_progress, $minimal, true);
 	}
 
 	/**
@@ -708,24 +723,6 @@ class QueueTask extends QueueAppModel {
 	}
 
 	/**
-	* Find the hour based on a string
-	* @param string '11 am'
-	* @return int hour to execute. 0 - 23
-	*/
-	private function __findHour($stringHour) {
-		return date('G', strtotime($stringHour));
-	}
-
-	/**
-	* Find the day based on a string
-	* @param string 'Sunday'
-	* @return int hour to execute. 0 - 6
-	*/
-	private function __findDay($stringDay) {
-		return date('w', strtotime($stringDay));
-	}
-
-	/**
 	* Find the status int by a string
 	* @param string status (queued, in_progress, etc..)
 	* @return mixed int of correct status or false if invalid.
@@ -737,5 +734,21 @@ class QueueTask extends QueueAppModel {
 			return $status;
 		}
 		return false;
+	}
+
+	/**
+	* Reschedule a task based on reschedule
+	* @param string uuid
+	* @return boolean success
+	*/
+	private function __reschedule($id = null) {
+		if ($id) {
+			$this->id = $id;
+		}
+		if (!$this->exists()) {
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
+		}
+		
+		QueueUtil::writeLog('Rescheduling ' . $this->id . ' to ');
 	}
 }

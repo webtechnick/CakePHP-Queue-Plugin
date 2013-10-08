@@ -1,6 +1,6 @@
 {
 	"name": "webtechnick/cakephp-queue-plugin",
-	"description": "CakePHP Queue Plugin",
+	"description": "CakePHP Queue Plugin - Complete tool to background and schedule your time consuming tasks.  Queue up almost anything from CakePHP shells, models, and actions to standard php commands or even shell commands.",
 	"type": "cakephp-plugin",
 	"keywords": ["cakephp", "background", "tasks", "crons", "plugin"],
 	"homepage": "https://github.com/webtechnick/CakePHP-Queue-Plugin",

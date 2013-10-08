@@ -73,7 +73,92 @@ Once you start adding things to your queue you need to process it.  You can do i
 4) By navigating to the queue plugin admin web interface and processing the Queue (feature not available yet)
 
 
-## Quick Start Usage
+## Quick Start Guide (Shell)
+
+Add a Task to the queue.
+
+	$ cake queue.queue add "Queue.QueueTask::find('first')"
+	
+	Task succesfully added.
+	525387a1-2dd0-4100-a48f-4f4be017215a queued model
+		Command: Queue.QueueTask::find('first')
+		Priority: 100
+
+Process the Queue.
+
+	$ cake queue.queue process
+	
+	Processing Queue.
+	Success.
+
+View the Task added.
+
+	$ cake queue.queue view 525387a1-2dd0-4100-a48f-4f4be017215a
+	
+	525387a1-2dd0-4100-a48f-4f4be017215a finished model
+	Command: Queue.QueueTask::find('first')
+	Priority: 100
+	Executed on Monday 7th of October 2013 10:19:10 PM. And took 0 ms.
+	Result: {"QueueTask":{"id":"525387a1-2dd0-4100-a48f-4f4be017215a","user_id":null,"created":"2013-10-07 22:18:41","modified":"2013-10-07 22:19:10","executed":null,"scheduled":null,"scheduled_end":null,"reschedule":null,"start_time":"1381205950","end_time":null,"cpu_limit":null,"is_restricted":false,"priority":"100","status":"2","type":"1","command":"Queue.QueueTask::find('first')","result":null,"execution_time":null,"type_human":"model","status_human":"in progress"}}
+
+## Quick Start Guide (Library)
+
+Adding a Task to the queue.
+
+	App::uses('Queue', 'Queue.Lib');
+	$task = Queue::add("Queue.QueueTask::find('first')");
+	/* $task = 
+		'QueueTask' => array(
+			'priority' => (int) 100,
+			'command' => 'Queue.QueueTask::find('first')',
+			'type' => (int) 1,
+			'scheduled' => null,
+			'scheduled_end' => null,
+			'reschedule' => null,
+			'cpu_limit' => null,
+			'modified' => '2013-10-07 22:22:36',
+			'created' => '2013-10-07 22:22:36',
+			'user_id' => null,
+			'id' => '5253888c-ae18-4ffd-991a-4436e017215a'
+		) */
+	
+Process the queue.
+
+	$result = Queue::process();
+	/* $result will be boolean true */
+
+View the Task.
+
+	$task = Queue::view('5253888c-ae18-4ffd-991a-4436e017215a');
+	/* $task is the string representation, same as queue view. Not as useful */
+	
+	$task = Queue::findById('5253888c-ae18-4ffd-991a-4436e017215a');
+	/* $task is now an associative array, much more useful.
+	array(
+		'id' => '52538a36-df1c-4186-a50a-4076e017215a',
+		'user_id' => null,
+		'created' => '2013-10-07 22:29:42',
+		'modified' => '2013-10-07 22:29:42',
+		'executed' => '2013-10-07 22:29:42',
+		'scheduled' => null,
+		'scheduled_end' => null,
+		'reschedule' => null,
+		'start_time' => '1381206582',
+		'end_time' => '1381206582',
+		'cpu_limit' => null,
+		'is_restricted' => false,
+		'priority' => '100',
+		'status' => '3',
+		'type' => '1',
+		'command' => 'Queue.QueueTask::find('first')',
+		'result' => '{"QueueTask":{"id":"524b0c44-a3a0-4956-8428-dc3ee017215a","user_id":null,"created":"2013-10-01 11:54:12","modified":"2013-10-01 11:54:12","executed":null,"scheduled":null,"scheduled_end":null,"reschedule":null,"start_time":null,"end_time":null,"cpu_limit":null,"is_restricted":false,"priority":"100","status":"1","type":"1","command":"SomeModel::action(\"param\",\"param2\")","result":"","execution_time":null,"type_human":"model","status_human":"queued"}}',
+		'execution_time' => '0',
+		'type_human' => 'model',
+		'status_human' => 'finished'
+	)	*/
+	
+
+## Adding Tasks to Queue Types and Commands
 
 Once you've decided how you're going to process your queue it's time to start adding tasks to your queue.
 

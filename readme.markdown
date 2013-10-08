@@ -82,10 +82,10 @@ To add tasks use the built in shell or library.
 	Queue::add($command, $type, $options = array());
 	cake queue.queue add "command" -t type
 
-There are many `5 types` of commands you can use. You must specify the type when adding the command unless model is used
+There are many `5 types` of commands you can use. You must specify the type when adding the command unless model is used. 
 Model command is assumed when no type is specified.
 
-1) Model - Model function to execute. Examples:
+1) **Model** : Model function to execute. Examples:
 
 	#Command strings
 	Model::action()
@@ -95,7 +95,7 @@ Model command is assumed when no type is specified.
 	Queue::add("Plugin.Model::action('param1','pararm2')");
 	cake queue.queue add "Plugin.Model::action('param1','pararm2')"
 
-2) Shell - CakePHP shell to execute. Examples:
+2) **Shell** : CakePHP shell to execute. Examples:
 
 	#Command strings
 	ClearCache.clear_cache
@@ -105,7 +105,7 @@ Model command is assumed when no type is specified.
 	Queue::add("shell_command -f flag arg1 arg2", 'shell');
 	cake queue.queue add "shell_command -f flag arg1 arg2" -t shell
 
-3) Url - A URL to requestAction. Example:
+3) **Url** : A URL to requestAction. Example:
 
 	#Command string
 	/path/to/url
@@ -114,7 +114,7 @@ Model command is assumed when no type is specified.
 	Queue::add("/path/to/url", 'url');
 	cake queue.queue add "/path/to/url" -t url
 
-4) php_cmd - PHP Command, a simple or complex php command. Examples:
+4) **php_cmd** : PHP Command, a simple or complex php command. Examples:
 
 	#Command strings
 	3 + 5
@@ -124,7 +124,7 @@ Model command is assumed when no type is specified.
 	Queue::add("mail('nick@example.com','subject','message')", 'php_cmd');
 	cake queue.queue add "mail('nick@example.com','subject','message')" -t php_cmd
 
-5) shell_cmd - Basic Bash shell command. Examples:
+5) **shell_cmd** : Basic Bash shell command. Examples:
 
 	#Command string
 	echo 'hello' && echo 'world'
@@ -173,7 +173,7 @@ the current state of the server before it looks for non-restriction tasks as non
 
 #### Task Options
 
-1) `Scheduled Start` Restriction: you can schedule a task to not execute until a certain the scheduled time has passed.
+1) **Scheduled Start** Restriction: you can schedule a task to not execute until a certain the scheduled time has passed.
 
 	Queue::add($command, $type, $options = array(
 		'start' => 'Friday 11pm',
@@ -182,7 +182,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	# Queue Shell
 	cake queue.queue add "command" -t type --start "Friday 11pm"
 
-2) `Schedule End` Restriciton: you can specify an end time to make a "window" of execution time.  When using this option you must also specify a reschedule option that will go into affect if the "window" is missed.
+2) **Schedule End** Restriciton: you can specify an end time to make a "window" of execution time.  When using this option you must also specify a reschedule option that will go into affect if the "window" is missed.
 
 	Queue::add($command, $type, $options = array(
 		'start' => 'Friday 11pm',
@@ -193,7 +193,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	# Queue Shell
 	cake queue.queue add "command" -t type --start "Friday 11pm" --end "Saturday 5am" --reschedule "+1 week"
 
-3) `Cpu Load` Restriction: you can specify a CPU load restriction to only execute task when CPU is below a certain threshold.
+3) **Cpu Load** Restriction: you can specify a CPU load restriction to only execute task when CPU is below a certain threshold.
 
 	# Task will execute when the current CPU load is less than 95%
 	Queue::add($command, $type, $options = array(
@@ -203,7 +203,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	# Queue Shell
 	cake queue.queue add "command" -t type --cpu "95"
 
-4) `Priority` Restriction: by default all Tasks added are given 100 in priority.  You can change this priority when adding and will allow you to jump ahead of the line.  The lower the number the closer to the top of the queue it becomes.
+4) **Priority** Restriction: by default all Tasks added are given 100 in priority.  You can change this priority when adding and will allow you to jump ahead of the line.  The lower the number the closer to the top of the queue it becomes.
 
 	# This will jump the task to the top of the queue (after restrictions tasks)
 	Queue::add($command, $type, $options = array(

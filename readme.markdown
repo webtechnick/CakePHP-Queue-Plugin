@@ -83,7 +83,7 @@ To add tasks use the built in shell or library.
 	cake queue.queue add "command" -t type
 
 There are many `5 types` of commands you can use. You must specify the type when adding the command unless model is used. 
-Model command is assumed when no type is specified.
+Model type is assumed when no type is specified.
 
 1) **Model** : Model function to execute. Examples:
 
@@ -167,13 +167,13 @@ You'll see a list of your upcomming queues including restrictions you set on you
 
 ## Task Restrictions
 
-There are a number of restrictions you can assign to Tasks that will modify their order in the queue and affect the when the task executes.
+There are a number of restrictions you can assign to Tasks that will modify their order in the queue and affect when the task executes.
 Restricted Tasks gain priority over Non-restriction tasks (basic queued tasks).  The Queue process will look for restricted tasks that match
 the current state of the server before it looks for non-restriction tasks as non-restriction tasks are by defination not time sensitive.
 
 #### Task Options
 
-1) **Scheduled Start** Restriction: you can schedule a task to not execute until a certain the scheduled time has passed.
+1) **Scheduled Start** Restriction: you can schedule a task to not execute until a certain scheduled time has passed.
 
 	Queue::add($command, $type, $options = array(
 		'start' => 'Friday 11pm',
@@ -213,4 +213,63 @@ the current state of the server before it looks for non-restriction tasks as non
 	# Queue Shell
 	cake queue.queue add "command" -t type -p 1
 
+Mix and match your restrictions to have total control over when your tasks execute and where they're placed in the queue.
 
+## Running A Task Manually
+
+You can bypass the queue process and explicicty run a task manually.  This will bypass any restrictions execute the command and return the result.
+
+	//Queue::run($id);
+	#cake queue.queue run <id>
+	
+	$ cake queue.queue run 52535ab8-6298-4ab3-9fc6-4b49e017215a
+	
+	Running 52535ab8-6298-4ab3-9fc6-4b49e017215a
+	Success.
+	52535ab8-6298-4ab3-9fc6-4b49e017215a finished shell_cmd
+		Command: echo 'hello' && echo 'world'
+		Priority: 100
+		Restricted By:
+			Start: 2013-10-07 23:00:00
+		Executed on Monday 7th of October 2013 10:06:27 PM. And took 0 ms.
+		Result: "hello\nworld\n"
+
+## Viewing A Task
+
+You can view any task, in the queue or in the queue log (archive after execution) at anytime.
+You'll see all the meta data and if it's a finished task you'll see the result of the task as well as the execution time and how long it took to complete.
+
+	//$task = Queue::view($id);
+	#cake queue.queue view <id>
+	
+	$ cake queue.queue view 52535ab8-6298-4ab3-9fc6-4b49e017215a
+	
+	52535ab8-6298-4ab3-9fc6-4b49e017215a finished shell_cmd
+	Command: echo 'hello' && echo 'world'
+	Priority: 100
+	Restricted By:
+		Start: 2013-10-07 23:00:00
+	Executed on Monday 7th of October 2013 10:06:27 PM. And took 0 ms.
+	Result: "hello\nworld\n"
+
+## Viewing Tasks in Progress
+
+You can view the current tasks in progress via the library or shell.
+
+	$queue = Queue::inProgress();
+	cake queue.queue in_progress
+
+**NOTE:** You can also get just the progress count by running `cake queue.queue in_progress_count` or `Queue::inProgressCount();`
+
+## Removing Tasks from Queue
+
+Remove tasks from the queue.  Note this will not remove tasks that are currently in progress by default.
+
+	//Queue::remove($id);
+	cake queue.queue remove <id>
+
+**NOTE:** You can force a task to be removed even if it's in progress by passing `true` into `Queue::remove($id, true);` or `cake queue.queue remove <id> -f`
+
+# Enjoy
+
+Enjoy the plugin!

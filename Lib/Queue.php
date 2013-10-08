@@ -27,7 +27,7 @@ class Queue extends Object {
 	*  - start     = strtotime datetime to execute. Will assume future date. (11 pm Sunday)  (default null)
 	*  - end       = strtotime datetime of window allowed to execute (5 am Monday) (default null)
 	*  - reschedule = strtotime addition to scheduled to execute. (+1 day | +1 week) (default null)
-	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
+	*  - cpu      = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
 	* @return boolean success

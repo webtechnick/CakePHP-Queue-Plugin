@@ -242,10 +242,12 @@ class QueueTask extends QueueAppModel {
 			'end' => null,
 			'reschedule' => null,
 			'cpu_limit' => null,
+			'cpu' => null,
 			'priority' => 100,
 			'scheduled' => null,
 			'scheduled_end' => null,
 		), (array) $options);
+		$options['cpu_limit'] = $options['cpu'];
 
 		if (!$this->isDigit($type)) {
 			$type = $this->__findType($type);

@@ -63,7 +63,7 @@ Once you start adding things to your queue you need to process it.  You can do i
 
 2) By processing the Queue via the built in shell
 
-	cake queue.queue process
+	cake Queue.queue process
 
 3) By processing the Queue via the built in library
 
@@ -77,7 +77,7 @@ Once you start adding things to your queue you need to process it.  You can do i
 
 Add a Task to the queue.
 
-	$ cake queue.queue add "Queue.QueueTask::find('first')"
+	$ cake Queue.queue add "Queue.QueueTask::find('first')"
 	
 	Task succesfully added.
 	525387a1-2dd0-4100-a48f-4f4be017215a queued model
@@ -86,14 +86,14 @@ Add a Task to the queue.
 
 Process the Queue.
 
-	$ cake queue.queue process
+	$ cake Queue.queue process
 	
 	Processing Queue.
 	Success.
 
 View the Task added.
 
-	$ cake queue.queue view 525387a1-2dd0-4100-a48f-4f4be017215a
+	$ cake Queue.queue view 525387a1-2dd0-4100-a48f-4f4be017215a
 	
 	525387a1-2dd0-4100-a48f-4f4be017215a finished model
 	Command: Queue.QueueTask::find('first')
@@ -165,10 +165,9 @@ Once you've decided how you're going to process your queue it's time to start ad
 To add tasks use the built in shell or library.
 
 	Queue::add($command, $type, $options = array());
-	cake queue.queue add "command" -t type
+	cake Queue.queue add "command" -t type
 
-There are many `5 types` of commands you can use. You must specify the type when adding the command unless model is used. 
-Model type is assumed when no type is specified.
+There are *5 types* of commands you can use. The default is *model*. 
 
 1) **Model** : Model function to execute. Examples:
 
@@ -178,7 +177,9 @@ Model type is assumed when no type is specified.
 	
 	#Adding the command to the queue.
 	Queue::add("Plugin.Model::action('param1','pararm2')");
-	cake queue.queue add "Plugin.Model::action('param1','pararm2')"
+	cake Queue.queue add "Plugin.Model::action('param1','pararm2')"
+        
+        Models are setup via ClassRegistry::init() and methods executed on the model object as public method calls.
 
 2) **Shell** : CakePHP shell to execute. Examples:
 
@@ -188,7 +189,7 @@ Model type is assumed when no type is specified.
 	
 	#Adding the command to the queue.
 	Queue::add("shell_command -f flag arg1 arg2", 'shell');
-	cake queue.queue add "shell_command -f flag arg1 arg2" -t shell
+	cake Queue.queue add "shell_command -f flag arg1 arg2" -t shell
 
 3) **Url** : A URL to requestAction. Example:
 
@@ -197,7 +198,7 @@ Model type is assumed when no type is specified.
 	
 	#Adding the command to the queue.
 	Queue::add("/path/to/url", 'url');
-	cake queue.queue add "/path/to/url" -t url
+	cake Queue.queue add "/path/to/url" -t url
 
 4) **php_cmd** : PHP Command, a simple or complex php command. Examples:
 
@@ -207,7 +208,7 @@ Model type is assumed when no type is specified.
 	
 	#Adding the command to the queue.
 	Queue::add("mail('nick@example.com','subject','message')", 'php_cmd');
-	cake queue.queue add "mail('nick@example.com','subject','message')" -t php_cmd
+	cake Queue.queue add "mail('nick@example.com','subject','message')" -t php_cmd
 
 5) **shell_cmd** : Basic Bash shell command. Examples:
 
@@ -216,7 +217,7 @@ Model type is assumed when no type is specified.
 	
 	#Adding the command to the queue.
 	Queue::add("echo 'hello' && echo 'world'", 'shell_cmd');
-	cake queue.queue add "echo 'hello' && echo 'world'" -t shell_cmd
+	cake Queue.queue add "echo 'hello' && echo 'world'" -t shell_cmd
 
 **NOTE** `php_cmd` and `shell_cmd` are not allowed by default. You have to turn them on in `app/Config/queue.php`.
 
@@ -224,7 +225,7 @@ Model type is assumed when no type is specified.
 
 You can see what is in the queue at any given time and what is up next by calling `Queue::next($limit);` or the shell
 
-	cake queue.queue next 10
+	cake Queue.queue next 10
 	
 	Retrieving Queue List.
 	1) 52537d35-95d0-48aa-a48d-416de017215a queued url
@@ -265,7 +266,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	));
 	
 	# Queue Shell
-	cake queue.queue add "command" -t type --start "Friday 11pm"
+	cake Queue.queue add "command" -t type --start "Friday 11pm"
 
 2) **Schedule End** Restriciton: you can specify an end time to make a "window" of execution time.  When using this option you must also specify a reschedule option that will go into affect if the "window" is missed.
 
@@ -276,7 +277,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	));
 	
 	# Queue Shell
-	cake queue.queue add "command" -t type --start "Friday 11pm" --end "Saturday 5am" --reschedule "+1 week"
+	cake Queue.queue add "command" -t type --start "Friday 11pm" --end "Saturday 5am" --reschedule "+1 week"
 
 3) **Cpu Load** Restriction: you can specify a CPU load restriction to only execute task when CPU is below a certain threshold.
 
@@ -286,7 +287,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	));
 	
 	# Queue Shell
-	cake queue.queue add "command" -t type --cpu "95"
+	cake Queue.queue add "command" -t type --cpu "95"
 
 4) **Priority** Restriction: by default all Tasks added are given 100 in priority.  You can change this priority when adding and will allow you to jump ahead of the line.  The lower the number the closer to the top of the queue it becomes.
 
@@ -296,7 +297,7 @@ the current state of the server before it looks for non-restriction tasks as non
 	));
 	
 	# Queue Shell
-	cake queue.queue add "command" -t type -p 1
+	cake Queue.queue add "command" -t type -p 1
 
 Mix and match your restrictions to have total control over when your tasks execute and where they're placed in the queue.
 
@@ -305,9 +306,9 @@ Mix and match your restrictions to have total control over when your tasks execu
 You can bypass the queue process and explicicty run a task manually.  This will bypass any restrictions execute the command and return the result.
 
 	//Queue::run($id);
-	#cake queue.queue run <id>
+	#cake Queue.queue run <id>
 	
-	$ cake queue.queue run 52535ab8-6298-4ab3-9fc6-4b49e017215a
+	$ cake Queue.queue run 52535ab8-6298-4ab3-9fc6-4b49e017215a
 	
 	Running 52535ab8-6298-4ab3-9fc6-4b49e017215a
 	Success.
@@ -325,9 +326,9 @@ You can view any task, in the queue or in the queue log (archive after execution
 You'll see all the meta data and if it's a finished task you'll see the result of the task as well as the execution time and how long it took to complete.
 
 	//$task = Queue::view($id);
-	#cake queue.queue view <id>
+	#cake Queue.queue view <id>
 	
-	$ cake queue.queue view 52535ab8-6298-4ab3-9fc6-4b49e017215a
+	$ cake Queue.queue view 52535ab8-6298-4ab3-9fc6-4b49e017215a
 	
 	52535ab8-6298-4ab3-9fc6-4b49e017215a finished shell_cmd
 	Command: echo 'hello' && echo 'world'
@@ -342,16 +343,16 @@ You'll see all the meta data and if it's a finished task you'll see the result o
 You can view the current tasks in progress via the library or shell.
 
 	$queue = Queue::inProgress();
-	cake queue.queue in_progress
+	cake Queue.queue in_progress
 
-**NOTE:** You can also get just the progress count by running `cake queue.queue in_progress_count` or `Queue::inProgressCount();`
+**NOTE:** You can also get just the progress count by running `cake Queue.queue in_progress_count` or `Queue::inProgressCount();`
 
 ## Removing Tasks from Queue
 
 Remove tasks from the queue.  Note this will not remove tasks that are currently in progress by default.
 
 	//Queue::remove($id);
-	cake queue.queue remove <id>
+	cake Queue.queue remove <id>
 
 **NOTE:** You can force a task to be removed even if it's in progress by passing `true` into `Queue::remove($id, true);` or `cake queue.queue remove <id> -f`
 

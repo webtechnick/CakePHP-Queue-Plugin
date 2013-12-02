@@ -411,6 +411,7 @@ class QueueTask extends QueueAppModel {
 		}
 		$this->__setInProgress($this->id);
 		$data = $this->read();
+		QueueUtil::writeLog('Running Queue ID: ' . $this->id);
 		switch ($data[$this->alias]['type']) {
 			case 1:
 				$retval = $this->__runModelQueue($data);

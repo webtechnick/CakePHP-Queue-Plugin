@@ -76,7 +76,7 @@ class QueueTask extends QueueAppModel {
 				'allowEmpty' => true
 			)
 		),
-		'is_required' => array(
+		'is_restricted' => array(
 			'boolean' => array(
 				'rule' => array('boolean'),
 				'message' => 'is_required must be a 0 or 1'
@@ -219,7 +219,15 @@ class QueueTask extends QueueAppModel {
 		$allowedTypes = QueueUtil::getConfig('allowedTypes');
 		return in_array($field['type'], $allowedTypes);
 	}
-
+	/**
+	* This converts the admin save to 
+	*/
+	public function adminSave($data = array()) {
+		$options = $data['QueueTask'];
+		$command = $data['QueueTask']['command'];
+		$type = $data['QueueTask']['type'];
+		return $this->add($command, $type, $options);
+	}
 	/**
 	* Convience function utilized by Queue::add() library
 	* @param string command
@@ -231,6 +239,7 @@ class QueueTask extends QueueAppModel {
 	*  - cpu_limit = int 0-100 percent threshold for when to execute (95 will execute will less than 95% cpu load (default null).
 	*            if left null, as soon as possible will be assumed.
 	*  - priority = the priority of the task, a way to Cut in line. (default 100)
+	*  - id = if provided, will update the record instead of creating a new one.
 	* @return boolean success
 	*/
 	public function add($command, $type, $options = array()) {
@@ -238,6 +247,7 @@ class QueueTask extends QueueAppModel {
 			return $this->__errorAndExit("Command and Type required to add Task to Queue.");
 		}
 		$options = array_merge(array(
+			'id' => null,
 			'start' => null,
 			'end' => null,
 			'reschedule' => null,
@@ -262,6 +272,7 @@ class QueueTask extends QueueAppModel {
 		}
 
 		$data = array(
+			'id' => $options['id'],
 			'priority' => $options['priority'],
 			'command' => $command,
 			'type' => $type,
@@ -270,7 +281,7 @@ class QueueTask extends QueueAppModel {
 			'reschedule' => $options['reschedule'],
 			'cpu_limit' => $options['cpu_limit']
 		);
-		if ($options['scheduled'] !== null || $options['cpu_limit'] !== null) {
+		if (!empty($options['scheduled']) || !empty($options['cpu_limit'])) {
 			$data['is_restricted'] = true;
 		}
 		$this->clear();
@@ -307,6 +318,30 @@ class QueueTask extends QueueAppModel {
 				"{$this->alias}.status" => 2 //in_progress
 			)
 		));
+	}
+	/**
+	* Find for view. Will search through this
+	* table and queueTaskLog as well
+	*/
+	public function findForView($id = null) {
+		$retval = $this->find('first', array(
+			'conditions' => array(
+				'QueueTask.id' => $id
+			)
+		));
+		if (empty($retval)) {
+			$log = ClassRegistry::init('Queue.QueueTaskLog')->find('first', array(
+				'conditions' => array(
+					'QueueTaskLog.id' => $id
+				)
+			));
+			if (!empty($log)) {
+				$retval = array(
+					'QueueTask' => $log['QueueTaskLog']
+				);
+			}
+		}
+		return $retval;
 	}
 	/**
 	* Generate the list of next 10 in queue.
@@ -515,17 +550,6 @@ class QueueTask extends QueueAppModel {
 				"{$this->alias}.status" => 2 //in progress
 			)
 		));
-	}
-	/**
-	* Set and error and return false
-	* @param string message
-	* @return false
-	* @access private
-	*/
-	private function __errorAndExit($message) {
-		$this->errors[$this->id][] = $message;
-		QueueUtil::writeLog('Error: ' . $message);
-		return false;
 	}
 
 	/**

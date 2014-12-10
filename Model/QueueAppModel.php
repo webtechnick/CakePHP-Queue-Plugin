@@ -172,4 +172,15 @@ class QueueAppModel extends AppModel {
 		}
 		return $retval;
 	}
+	/**
+	* Set and error and return false
+	* @param string message
+	* @return false
+	* @access private
+	*/
+	public function __errorAndExit($message) {
+		$this->errors[$this->id][] = $message;
+		QueueUtil::writeLog('Error: ' . $message);
+		return false;
+	}
 }

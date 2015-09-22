@@ -83,8 +83,8 @@ class QueueTask extends QueueAppModel {
 			)
 		),
 		'command' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
+			'notblank' => array(
+				'rule' => array('notblank'),
 				'message' => 'No command. Please specify.',
 			),
 			'validCommand' => array(

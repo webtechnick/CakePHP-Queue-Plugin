@@ -477,6 +477,26 @@ class QueueTask extends QueueAppModel {
 	*/
 	public function process() {
 		$queues = $this->runList();
+		foreach($this->findInProgress() as $runningProcess) {
+			if($runningProcess['QueueTask']['status'] == 2) {
+				$pid = $runningProcess['QueueTask']['pid'];
+				$running = false;
+				if(is_null($pid)) {
+					$running = false;
+				} else {
+					if(shell_exec('ps -hp '.$pid.' | wc -l') > 0) {
+						$running = true;
+					}
+				}
+
+				if(!$running) {
+					$this->id = $runningProcess['QueueTask']['id'];
+					$this->saveField('status', 5);
+				}
+			}
+		}
+
+
 		if (empty($queues)) {
 			return true;
 		}
@@ -502,7 +522,7 @@ class QueueTask extends QueueAppModel {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
 		$data = $this->read();
-		if ($data[$this->alias]['status'] != 3) { //Finished
+		if ($data[$this->alias]['status'] != 3 && $data[$this->alias]['status'] != 5) { //Finished
 			return false;
 		}
 		if (!ClassRegistry::init('Queue.QueueTaskLog')->save($data['QueueTask'])) {
@@ -608,6 +628,16 @@ class QueueTask extends QueueAppModel {
 				App::uses('ShellDispatcher','Console');
 				$this->Shell = new Shell();
 			}
+
+			if ($data['QueueTask']['id']) {
+				$this->id = $data['QueueTask']['id'];
+			}
+
+			if (!$this->exists()) {
+				return $this->__errorAndExit("QueueTask {$this->id} not found.");
+			}
+			$this->saveField('pid', getmypid());
+
 			$retval['result'] = $this->Shell->dispatchShell($data[$this->alias]['command']);
 			if ($retval['result'] !== false) {
 				$retval['success'] = true;

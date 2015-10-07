@@ -3,16 +3,16 @@
 * QueueTask model, these are tasks that are put into the Queue.
 * This model also handles the queue itself but `DO NOT` interface
 * with it directly.  Use the Queue.Lib to interface with your queue.
-* 
+*
 * @example
  App::uses('Queue', 'Queue.Lib');
  Queue::add();              //adds a task to the queue.
- Queue::remove();           //safely remove a task from the queue.  
+ Queue::remove();           //safely remove a task from the queue.
  Queue::next('10');         //see next X items in the queue to execute
  Queue::inProgress();       //See what tasks are currently in progress
  Queue::inProgressCount();  //Get count of how many tasks are currently running
  Queue::process();          //Process the Queue.
- 
+
  //Please refer to Documentation in Queue.Lib for how to add items propery to the queue.
 *
 * @author Nick
@@ -83,8 +83,8 @@ class QueueTask extends QueueAppModel {
 			)
 		),
 		'command' => array(
-			'notempty' => array(
-				'rule' => array('notempty'),
+			'notBlank' => array(
+				'rule' => array('notBlank'),
 				'message' => 'No command. Please specify.',
 			),
 			'validCommand' => array(
@@ -220,7 +220,7 @@ class QueueTask extends QueueAppModel {
 		return in_array($field['type'], $allowedTypes);
 	}
 	/**
-	* This converts the admin save to 
+	* This converts the admin save to
 	*/
 	public function adminSave($data = array()) {
 		$options = $data['QueueTask'];
@@ -367,7 +367,7 @@ class QueueTask extends QueueAppModel {
 				'OR' => array(
 					array("{$this->alias}.scheduled_end >=" => $now),
 					array("{$this->alias}.scheduled_end" => null),
-				), 
+				),
 				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
 			array( //Look for restricted by scheduled and with a window
@@ -381,7 +381,7 @@ class QueueTask extends QueueAppModel {
 			),
 			array( //Look for restricted by cpu
 				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1, 
+				"{$this->alias}.status" => 1,
 				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
 			array( //Unrestricted
@@ -775,7 +775,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
-		
+
 		QueueUtil::writeLog('Rescheduling ' . $this->id . ' to ');
 	}
 }

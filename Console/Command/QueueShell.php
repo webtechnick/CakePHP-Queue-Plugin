@@ -8,13 +8,20 @@
 App::uses('Shell', 'Console');
 App::uses('AppShell', 'Console/Command');
 App::uses('Queue', 'Queue.Lib');
-class QueueShell extends AppShell {
-	public $uses = array('Queue.QueueTask');
 /**
- * get the option parser.
+ * Class QueueShell
  *
- * @return void
+ * @property QueueTask $QueueTask
  */
+class QueueShell extends AppShell {
+	public function initialize() {
+		parent::initialize();
+		$this->QueueTask = ClassRegistry::init('Queue.QueueTask');
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
 	public function getOptionParser() {
 		$parser = parent::getOptionParser();
 		return $parser->description(
@@ -161,7 +168,7 @@ class QueueShell extends AppShell {
 	public function main() {
 		$this->out($this->getOptionParser()->help());
 	}
-	
+
 	public function add() {
 		$command = array_shift($this->args);
 		$defaults = array(
@@ -185,7 +192,7 @@ class QueueShell extends AppShell {
 			print_r($this->QueueTask->validationErrors);
 		}
 	}
-	
+
 	public function remove() {
 		$id = array_shift($this->args);
 		$this->out('Removing ' . $id);
@@ -196,12 +203,12 @@ class QueueShell extends AppShell {
 			$this->out(Queue::view($id));
 		}
 	}
-	
+
 	public function view() {
 		$id = array_shift($this->args);
 		$this->out(Queue::view($id));
 	}
-	
+
 	public function run() {
 		$id = array_shift($this->args);
 		$this->out('Running ' . $id);
@@ -213,7 +220,7 @@ class QueueShell extends AppShell {
 			$this->out('Failed to run task. Check logs.');
 		}
 	}
-	
+
 	public function process() {
 		$this->out('Processing Queue.');
 		if (Queue::process()) {
@@ -222,7 +229,7 @@ class QueueShell extends AppShell {
 			$this->out('One or more failed, Check logs.');
 		}
 	}
-	
+
 	public function next() {
 		$limit = array_shift($this->args);
 		$this->out('Retrieving Queue List.');
@@ -233,7 +240,7 @@ class QueueShell extends AppShell {
 			$i++;
 		}
 	}
-	
+
 	public function in_progress() {
 		$this->out('Retrieving In Progress Queues.');
 		$queue = Queue::inProgress();
@@ -247,7 +254,7 @@ class QueueShell extends AppShell {
 			$i++;
 		}
 	}
-	
+
 	public function in_progress_count() {
 		$this->out(Queue::inProgressCount(), 1, Shell::QUIET);
 	}

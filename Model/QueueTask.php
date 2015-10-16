@@ -444,9 +444,9 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
-		$this->__setInProgress($this->id);
+		$this->__setInProgress($id);
 		$data = $this->read();
-		QueueUtil::writeLog('Running Queue ID: ' . $this->id);
+		QueueUtil::writeLog('Running Queue ID: ' . $id);
 		switch ($data[$this->alias]['type']) {
 			case 1:
 				$retval = $this->__runModelQueue($data);
@@ -464,10 +464,10 @@ class QueueTask extends QueueAppModel {
 				$retval = $this->__runShellCmdQueue($data);
 				break;
 			default:
-				$this->__setToPaused($this->id);
+				$this->__setToPaused($id);
 				throw new Exception("Unknown Type");
 		}
-		$this->__setFinished($this->id, $retval['result']);
+		$this->__setFinished($id, $retval['result']);
 		return $retval['success'];
 	}
 

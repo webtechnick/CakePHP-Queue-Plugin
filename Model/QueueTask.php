@@ -125,8 +125,11 @@ class QueueTask extends QueueAppModel {
 	* @return boolean success
 	*/
 	public function beforeSave($options = array()) {
-		if ($user_id = $this->getCurrentUser('id')) {
-			$this->data[$this->alias]['user_id'] = $user_id;
+		$user_id_method = QueueUtil::getConfig('userIdMethod');
+		if (!empty($user_id_method)) {
+			if ($user_id = $this->$user_id_method()) {
+				$this->data[$this->alias]['user_id'] = $user_id;
+			}
 		}
 		return parent::beforeSave($options);
 	}
@@ -529,18 +532,6 @@ class QueueTask extends QueueAppModel {
 				unset($conditions['OR']["{$this->alias}.type LIKE"]);
 			}
 		}
-	}
-
-	/**
-	* Wrapper for getUserId, so we can mock this for testing
-	* @return mixed result of AuthComponent::user('id');
-	*/
-	public function getCurrentUser($field) {
-		if (!class_exists('AuthComponent')) {
-			return null;
-		}
-		App::uses('AuthComponent','Controller/Component');
-		return AuthComponent::user($field);
 	}
 
 	/**

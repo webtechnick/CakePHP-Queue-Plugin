@@ -38,7 +38,7 @@ class QueueSchema extends CakeSchema {
 			'scheduled' => array('column' => 'scheduled', 'unique' => 0),
 			'scheduled_end' => array('column' => 'scheduled_end', 'unique' => 0)
 		),
-		'tableParameters' => array('charset' => 'utf8', 'collate' => 'utf8_general_ci', 'engine' => 'MyISAM')
+		'tableParameters' => array('charset' => 'utf8', 'collate' => 'utf8_general_ci', 'engine' => 'InnoDB')
 	);
 
 	public $queue_tasks = array(
@@ -71,7 +71,7 @@ class QueueSchema extends CakeSchema {
 			'scheduled' => array('column' => 'scheduled', 'unique' => 0),
 			'scheduled_end' => array('column' => 'scheduled_end', 'unique' => 0)
 		),
-		'tableParameters' => array('charset' => 'utf8', 'collate' => 'utf8_general_ci', 'engine' => 'MyISAM')
+		'tableParameters' => array('charset' => 'utf8', 'collate' => 'utf8_general_ci', 'engine' => 'InnoDB')
 	);
 
 }

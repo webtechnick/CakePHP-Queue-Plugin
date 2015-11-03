@@ -10,7 +10,7 @@ class QueueSchema extends CakeSchema {
 
 	public $queue_task_logs = array(
 		'id' => array('type' => 'string', 'null' => false, 'default' => null, 'length' => 36, 'key' => 'primary', 'collate' => 'utf8_general_ci', 'charset' => 'utf8'),
-		'user_id' => array('type' => 'biginteger', 'null' => true, 'default' => null, 'length' => 22, 'comment' => 'user_id of who created/modified this queue. optional'),
+		'user_id' => array('type' => 'string', 'null' => true, 'default' => null, 'length' => 36, 'comment' => 'user_id of who created/modified this queue. optional'),
 		'created' => array('type' => 'datetime', 'null' => true, 'default' => null, 'key' => 'index'),
 		'modified' => array('type' => 'datetime', 'null' => true, 'default' => null),
 		'executed' => array('type' => 'datetime', 'null' => true, 'default' => null, 'key' => 'index', 'comment' => 'datetime when executed.'),
@@ -43,7 +43,7 @@ class QueueSchema extends CakeSchema {
 
 	public $queue_tasks = array(
 		'id' => array('type' => 'string', 'null' => false, 'default' => null, 'length' => 36, 'key' => 'primary', 'collate' => 'utf8_general_ci', 'charset' => 'utf8'),
-		'user_id' => array('type' => 'biginteger', 'null' => true, 'default' => null, 'length' => 22, 'comment' => 'user_id of who created/modified this queue. optional'),
+		'user_id' => array('type' => 'string', 'null' => true, 'default' => null, 'length' => 36, 'comment' => 'user_id of who created/modified this queue. optional'),
 		'created' => array('type' => 'datetime', 'null' => true, 'default' => null, 'key' => 'index'),
 		'modified' => array('type' => 'datetime', 'null' => true, 'default' => null),
 		'executed' => array('type' => 'datetime', 'null' => true, 'default' => null, 'key' => 'index', 'comment' => 'datetime when executed.'),

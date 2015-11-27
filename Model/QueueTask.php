@@ -499,6 +499,9 @@ class QueueTask extends QueueAppModel {
 				if(!$running) {
 					$this->id = $runningProcess['QueueTask']['id'];
 					$this->saveField('status', 5);
+					if (QueueUtil::getConfig('archiveAfterExecute')) {
+						$this->archive($this->id);
+					}
 				}
 			}
 		}

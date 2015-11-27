@@ -184,4 +184,13 @@ class QueueAppModel extends AppModel {
 		QueueUtil::writeLog('Error: ' . $message);
 		return false;
 	}
+
+	/**
+	* Wrapper for getUserId, so we can mock this for testing
+	* @return mixed result of AuthComponent::user('id');
+	*/
+	public function _getUserId() {
+		App::uses('AuthComponent', 'Controller/Component');
+		return AuthComponent::user('id');
+	}
 }

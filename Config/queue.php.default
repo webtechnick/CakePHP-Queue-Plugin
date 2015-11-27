@@ -18,5 +18,6 @@ $config = array(
 		'archiveAfterExecute' => true, //will archive the task once finished executing for quicker queues
 		'cache' => '+5 minute', //how long to cache cpu usage and list. (false disables cache)
 		'cores' => '8', //number of cpu cores to correctly gauge current CPU load.
+		'userIdMethod' => false, //Function to call on QueueAppModel to obtain the value for user_id (ships with _getUserId, defaults to off)
 	)
 );

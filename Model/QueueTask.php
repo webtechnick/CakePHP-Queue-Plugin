@@ -3,16 +3,16 @@
 * QueueTask model, these are tasks that are put into the Queue.
 * This model also handles the queue itself but `DO NOT` interface
 * with it directly.  Use the Queue.Lib to interface with your queue.
-* 
+*
 * @example
  App::uses('Queue', 'Queue.Lib');
  Queue::add();              //adds a task to the queue.
- Queue::remove();           //safely remove a task from the queue.  
+ Queue::remove();           //safely remove a task from the queue.
  Queue::next('10');         //see next X items in the queue to execute
  Queue::inProgress();       //See what tasks are currently in progress
  Queue::inProgressCount();  //Get count of how many tasks are currently running
  Queue::process();          //Process the Queue.
- 
+
  //Please refer to Documentation in Queue.Lib for how to add items propery to the queue.
 *
 * @author Nick
@@ -83,8 +83,8 @@ class QueueTask extends QueueAppModel {
 			)
 		),
 		'command' => array(
-			'notblank' => array(
-				'rule' => array('notblank'),
+			'notBlank' => array(
+				'rule' => array('notBlank'),
 				'message' => 'No command. Please specify.',
 			),
 			'validCommand' => array(
@@ -114,8 +114,11 @@ class QueueTask extends QueueAppModel {
 	* Construct to load config setting if we have cache
 	*/
 	public function __construct($id = false, $table = null, $ds = null) {
-		if (QueueUtil::getConfig('cache')) {
-			QueueUtil::configCache();
+		$user_id_method = QueueUtil::getConfig('userIdMethod');
+		if (!empty($user_id_method)) {
+			if ($user_id = $this->$user_id_method()) {
+				$this->data[$this->alias]['user_id'] = $user_id;
+			}
 		}
 		return parent::__construct($id, $table, $ds);
 	}
@@ -125,8 +128,11 @@ class QueueTask extends QueueAppModel {
 	* @return boolean success
 	*/
 	public function beforeSave($options = array()) {
-		if ($user_id = $this->getCurrentUser('id')) {
-			$this->data[$this->alias]['user_id'] = $user_id;
+		$user_id_method = QueueUtil::getConfig('userIdMethod');
+		if (!empty($user_id_method)) {
+			if ($user_id = $this->$user_id_method()) {
+				$this->data[$this->alias]['user_id'] = $user_id;
+			}
 		}
 		return parent::beforeSave($options);
 	}
@@ -220,7 +226,7 @@ class QueueTask extends QueueAppModel {
 		return in_array($field['type'], $allowedTypes);
 	}
 	/**
-	* This converts the admin save to 
+	* This converts the admin save to
 	*/
 	public function adminSave($data = array()) {
 		$options = $data['QueueTask'];
@@ -367,7 +373,7 @@ class QueueTask extends QueueAppModel {
 				'OR' => array(
 					array("{$this->alias}.scheduled_end >=" => $now),
 					array("{$this->alias}.scheduled_end" => null),
-				), 
+				),
 				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
 			array( //Look for restricted by scheduled and with a window
@@ -381,7 +387,7 @@ class QueueTask extends QueueAppModel {
 			),
 			array( //Look for restricted by cpu
 				"{$this->alias}.is_restricted" => true,
-				"{$this->alias}.status" => 1, 
+				"{$this->alias}.status" => 1,
 				"{$this->alias}.cpu_limit >=" => $cpu,
 			),
 			array( //Unrestricted
@@ -444,9 +450,9 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
-		$this->__setInProgress($this->id);
+		$this->__setInProgress($id);
 		$data = $this->read();
-		QueueUtil::writeLog('Running Queue ID: ' . $this->id);
+		QueueUtil::writeLog('Running Queue ID: ' . $id);
 		switch ($data[$this->alias]['type']) {
 			case 1:
 				$retval = $this->__runModelQueue($data);
@@ -464,10 +470,10 @@ class QueueTask extends QueueAppModel {
 				$retval = $this->__runShellCmdQueue($data);
 				break;
 			default:
-				$this->__setToPaused($this->id);
+				$this->__setToPaused($id);
 				throw new Exception("Unknown Type");
 		}
-		$this->__setFinished($this->id, $retval['result']);
+		$this->__setFinished($id, $retval['result']);
 		return $retval['success'];
 	}
 
@@ -477,6 +483,7 @@ class QueueTask extends QueueAppModel {
 	*/
 	public function process() {
 		$queues = $this->runList();
+
 		foreach($this->findInProgress() as $runningProcess) {
 			if($runningProcess['QueueTask']['status'] == 2) {
 				$pid = $runningProcess['QueueTask']['pid'];
@@ -495,7 +502,6 @@ class QueueTask extends QueueAppModel {
 				}
 			}
 		}
-
 
 		if (empty($queues)) {
 			return true;
@@ -549,15 +555,6 @@ class QueueTask extends QueueAppModel {
 				unset($conditions['OR']["{$this->alias}.type LIKE"]);
 			}
 		}
-	}
-
-	/**
-	* Wrapper for getUserId, so we can mock this for testing
-	* @return mixed result of AuthComponent::user('id');
-	*/
-	public function getCurrentUser($field) {
-		App::uses('AuthComponent','Controller/Component');
-		return AuthComponent::user($field);
 	}
 
 	/**
@@ -805,7 +802,7 @@ class QueueTask extends QueueAppModel {
 		if (!$this->exists()) {
 			return $this->__errorAndExit("QueueTask {$this->id} not found.");
 		}
-		
+
 		QueueUtil::writeLog('Rescheduling ' . $this->id . ' to ');
 	}
 }

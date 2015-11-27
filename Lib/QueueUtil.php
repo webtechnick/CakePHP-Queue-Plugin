@@ -133,7 +133,7 @@ class QueueUtil extends Object {
 		if ($cpu = self::readCache('cpu')) {
 			return $cpu;
 		}
-		$uptime = shell_exec('uptime');
+		$uptime = shell_exec('LANG=C uptime');
 		if (empty($uptime) || strpos($uptime, 'load') === false) {
 			throw new Exception('Unable to retrieve load avearge from uptime.');
 		}

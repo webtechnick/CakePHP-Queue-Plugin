@@ -32,6 +32,7 @@ class QueueAppModel extends AppModel {
 		2 => 'in progress',
 		3 => 'finished',
 		4 => 'paused',
+		5 => 'failed',
 	);
 	/**
 	* type key to human readable

@@ -8,7 +8,7 @@ App::uses('QueueAppController', 'Queue.Controller');
  * @property SessionComponent $Session
  */
 class QueueTasksController extends QueueAppController {
-	
+
 	public $uses = array('Queue.QueueTask','Queue.QueueTaskLog');
 
 /**
@@ -17,7 +17,7 @@ class QueueTasksController extends QueueAppController {
  * @var array
  */
 	public $components = array('Paginator', 'Session');
-	
+
 	public function beforeFilter() {
 		parent::beforeFilter();
 		$this->set('statuses', $this->QueueTask->_statuses);
@@ -38,6 +38,15 @@ class QueueTasksController extends QueueAppController {
 		$this->set('filter', $filter);
 	}
 
+	public function admin_logs($filter = null) {
+		if (!empty($this->request->data)) {
+			$filter = $this->request->data['QueueTaskLog']['filter'];
+		}
+		$conditions = $this->QueueTaskLog->generateFilterConditions($filter);
+		$this->set('queueTaskLogs',$this->paginate('QueueTaskLog',$conditions));
+		$this->set('filter', $filter);
+	}
+
 /**
  * admin_view method
  *
@@ -51,11 +60,11 @@ class QueueTasksController extends QueueAppController {
 		}
 		$this->set('queueTask', $this->QueueTask->findForView($id));
 	}
-	
+
 	public function admin_process() {
 		//Process the queue
 	}
-	
+
 	public function admin_run($id = null) {
 		if (!$this->QueueTask->exists($id)) {
 			throw new NotFoundException(__('Invalid queue task'));

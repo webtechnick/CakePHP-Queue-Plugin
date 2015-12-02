@@ -482,8 +482,28 @@ class QueueTask extends QueueAppModel {
 	* @return boolean success
 	*/
 	public function process() {
-		$queues = $this->runList();
 
+		// First check for failed tasks
+		$this->check();
+
+		$queues = $this->runList();
+		if (empty($queues)) {
+			return true;
+		}
+		$retval = true;
+		foreach ($queues as $queue) {
+			if (!$this->run($queue[$this->alias]['id'])) {
+				$retval = false;
+			}
+		}
+		return $retval;
+	}
+
+	/**
+	* Check the queue, this is the entry point of the shell and cron
+	* @return boolean success
+	*/
+	public function check() {
 		foreach($this->findInProgress() as $runningProcess) {
 			if($runningProcess['QueueTask']['status'] == 2) {
 				$pid = $runningProcess['QueueTask']['pid'];
@@ -505,17 +525,6 @@ class QueueTask extends QueueAppModel {
 				}
 			}
 		}
-
-		if (empty($queues)) {
-			return true;
-		}
-		$retval = true;
-		foreach ($queues as $queue) {
-			if (!$this->run($queue[$this->alias]['id'])) {
-				$retval = false;
-			}
-		}
-		return $retval;
 	}
 
 	/**

@@ -118,6 +118,11 @@ class QueueShell extends AppShell {
 								'help' => __('INT of how many you want to see in the future, \`10\`,\'5\''),
 								'required' => true,
 								'default' => 10
+							),
+							'minimal' => array(
+								'help' => __('Boolean value (0 or 1) define output style. If true (1) set, minimal output shown'),
+								'required' => false,
+								'default' => false
 							)
 						)
 					)
@@ -125,6 +130,10 @@ class QueueShell extends AppShell {
 			)
 			->addSubcommand('process', array(
 					'help' => __('Process the queue, runs the next limit items on the queue.')
+				)
+			)
+			->addSubcommand('check', array(
+					'help' => __('Check running tasks in queue and mark failed if process are not found.')
 				)
 			)
 			->addSubcommand('in_progress', array(
@@ -167,6 +176,12 @@ class QueueShell extends AppShell {
  */
 	public function main() {
 		$this->out($this->getOptionParser()->help());
+	}
+
+	public function _welcome() {
+		if(!filter_var((isset($_SERVER['SUPPRESSWELCOME']) ? $_SERVER['SUPPRESSWELCOME'] : 0), FILTER_VALIDATE_BOOLEAN)) {
+			parent::_welcome();
+		}
 	}
 
 	public function add() {
@@ -230,13 +245,23 @@ class QueueShell extends AppShell {
 		}
 	}
 
+	public function check() {
+		$this->out('Check running tasks.');
+		Queue::check();
+	}
+
 	public function next() {
 		$limit = array_shift($this->args);
-		$this->out('Retrieving Queue List.');
-		$queue = Queue::next($limit, false);
+		$minimal = filter_var(array_shift($this->args), FILTER_VALIDATE_BOOLEAN);
+		if(!$minimal) $this->out('Retrieving Queue List.');
+		$queue = Queue::next($limit);
 		$i = 1;
 		foreach ($queue as $task) {
-			$this->out($i . ') ' .  Queue::view($task['QueueTask']['id']));
+			if($minimal) {
+				print $task['QueueTask']['id']."\r\n";
+			} else {
+				$this->out($i . ') ' .  Queue::view($task['QueueTask']['id']));
+			}
 			$i++;
 		}
 	}

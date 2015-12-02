@@ -111,6 +111,15 @@ class Queue extends Object {
 	}
 
 	/**
+	* Check the Queue, mark failed tasks
+	* @return boolean success
+	*/
+	public static function check() {
+		self::loadQueueTask();
+		return self::$QueueTask->check();
+	}
+
+	/**
 	* Returns the tasks in progress.
 	* @return array of tasks currently in progress
 	*/

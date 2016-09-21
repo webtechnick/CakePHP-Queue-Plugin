@@ -9,7 +9,7 @@
 * @license MIT
 */
 App::uses('QueueUtil','Queue.Lib');
-class Queue extends Object {
+class Queue extends CakeObject {
 	/**
 	* Placeholder for Task
 	*/

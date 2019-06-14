@@ -76,6 +76,27 @@ class Queue extends Object {
 		}
 		return false;
 	}
+
+	/**
+	* Return the queue from QueueTask or QueueTaskLog as an associative array
+	* @param string uuid
+	* @return mixed array of queue or false if not found.
+	*/
+	public static function findIncompleteByKey($key = null) {
+		self::loadQueueTask();
+		return self::$QueueTask->find('all', ['conditions' => ['key' => $key, 'status' => [1, 2]]]);
+	}
+
+	/**
+	* Return the queue from QueueTask or QueueTaskLog as an associative array
+	* @param string uuid
+	* @return mixed array of queue or false if not found.
+	*/
+	public static function findFailedByKey($key = null) {
+		self::loadQueueTask();
+		return self::$QueueTask->find('all', ['conditions' => ['key' => $key, 'status' => [5]]]);
+	}
+
 	/**
 	* View the task as a string representation looks in QueueTask and QueueTaskLog
 	* @param string uuid

@@ -259,6 +259,7 @@ class QueueTask extends QueueAppModel {
 			'priority' => 100,
 			'scheduled' => null,
 			'scheduled_end' => null,
+            'key' => null,
 		), (array) $options);
 		$options['cpu_limit'] = $options['cpu'];
 
@@ -282,7 +283,8 @@ class QueueTask extends QueueAppModel {
 			'scheduled' => $options['scheduled'],
 			'scheduled_end' => $options['scheduled_end'],
 			'reschedule' => $options['reschedule'],
-			'cpu_limit' => $options['cpu_limit']
+			'cpu_limit' => $options['cpu_limit'],
+            'key' => $options['key'],
 		);
 		if (!empty($options['scheduled']) || !empty($options['cpu_limit'])) {
 			$data['is_restricted'] = true;
@@ -449,28 +451,37 @@ class QueueTask extends QueueAppModel {
 		}
 		$this->__setInProgress($id);
 		$data = $this->read();
-		QueueUtil::writeLog('Running Queue ID: ' . $id);
-		switch ($data[$this->alias]['type']) {
-			case 1:
-				$retval = $this->__runModelQueue($data);
-				break;
-			case 2:
-				$retval = $this->__runShellQueue($data);
-				break;
-			case 3:
-				$retval = $this->__runUrlQueue($data);
-				break;
-			case 4:
-				$retval = $this->__runPhpCmdQueue($data);
-				break;
-			case 5:
-				$retval = $this->__runShellCmdQueue($data);
-				break;
-			default:
-				$this->__setToPaused($id);
-				throw new Exception("Unknown Type");
+		QueueUtil::writeLog('Running Queue ID: ' . $id . ', type: ' . $data[$this->alias]['type']);
+		try {
+			switch ($data[$this->alias]['type']) {
+				case 1:
+					$retval = $this->__runModelQueue($data);
+					break;
+				case 2:
+					$retval = $this->__runShellQueue($data);
+					break;
+				case 3:
+					$retval = $this->__runUrlQueue($data);
+					break;
+				case 4:
+					$retval = $this->__runPhpCmdQueue($data);
+					break;
+				case 5:
+					$retval = $this->__runShellCmdQueue($data);
+					break;
+				default:
+					$this->__setToPaused($id);
+					throw new Exception("Unknown Type");
+			}
+			$this->__setFinished($id, $retval['result']);
+		} catch (Exception $e) {
+			QueueUtil::writeLog('Failed execution with error: ' . $e->getMessage());
+			$retval = array(
+				'success' => false,
+				'result' => $e->getMessage(),
+			);
+			$this->__setFailed($id, $retval['result']);
 		}
-		$this->__setFinished($id, $retval['result']);
 		return $retval['success'];
 	}
 
@@ -726,6 +737,29 @@ class QueueTask extends QueueAppModel {
 		if (QueueUtil::getConfig('archiveAfterExecute')) {
 			$this->archive($this->id);
 		}
+		return true;
+	}
+
+	/**
+	* Set the current queue to failed
+	* Will not archive the task after execution
+	* @param string id (optional)
+	* @param mixed result to save back
+	* @return boolean success
+	*/
+	private function __setFailed($id = null, $result = null) {
+		if ($id) {
+			$this->id = $id;
+		}
+		if (!$this->exists()) {
+			return $this->__errorAndExit("QueueTask {$this->id} not found.");
+		}
+		$save_result = json_encode($result);
+		$this->saveField('status', 5);
+		$this->saveField('result', $save_result);
+		$this->saveField('end_time', microtime(true));
+		$this->saveField('executed',$this->str2datetime());
+		QueueUtil::writeLog('Failed Execution on Task: ' . $this->id . "\nTook: " . $this->field('execution_time') . "\nResult:\n\n" . $save_result);
 		return true;
 	}
 
